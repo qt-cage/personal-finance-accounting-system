@@ -1,0 +1,47 @@
+# Build output and installed dependencies
+/backend/target/
+/backend/src/main/resources/static/
+/frontend/node_modules/
+/frontend/dist/
+
+# Local runtime data and backups
+/backend/uploads/
+/logs/
+/backups/
+*.log
+*.bak
+*.tmp
+*.swp
+*.orig
+*.db
+*.sqlite*
+
+# Local credentials and private keys
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.properties
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local tooling, internal records and design drafts
+/.ai/
+/docs/
+/product-design/
+/.github/
+/.vscode/
+/.idea/
+/.worktrees/
+/.claude/
+/.workbuddy/
+/AGENTS.md
+/CLAUDE.md
+/frontend/.vscode/
+/backend/.github/
+
+# Operating system caches
+.DS_Store
+Thumbs.db
