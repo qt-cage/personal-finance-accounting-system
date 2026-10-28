@@ -1,4 +1,5 @@
 package com.finance.service.impl;
+import com.finance.service.DataRevisionService;
 
 import com.finance.common.exception.BusinessException;
 import com.finance.common.i18n.I18nUtil;
@@ -35,12 +36,13 @@ class CategoryServiceImplTest {
     @Mock
     private BudgetMapper budgetMapper;
 
+    @Mock private DataRevisionService revision;
     @InjectMocks
     private CategoryServiceImpl service;
 
     @Test
     void updateRejectsSystemDefaultCategory() {
-        when(categoryMapper.selectById(3L)).thenReturn(category(3L, 0L));
+        when(categoryMapper.selectActiveForUpdate(3L)).thenReturn(category(3L, 0L));
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.updateCategory(1L, category(3L, null)));
@@ -89,7 +91,7 @@ class CategoryServiceImplTest {
     void updatePreservesOwnerAndUpdatesAllowedFields() {
         Category existing = category(3L, 1L);
         existing.setName("旧名称");
-        when(categoryMapper.selectById(3L)).thenReturn(existing);
+        when(categoryMapper.selectActiveForUpdate(3L)).thenReturn(existing);
         Category input = category(3L, 99L);
         input.setName("新名称");
         input.setType(1);
@@ -124,7 +126,7 @@ class CategoryServiceImplTest {
 
     @Test
     void updateRejectsChangingTypeThroughApi() {
-        when(categoryMapper.selectById(3L)).thenReturn(category(3L, 1L));
+        when(categoryMapper.selectActiveForUpdate(3L)).thenReturn(category(3L, 1L));
         Category update = category(3L, 1L);
         update.setType(2);
         BusinessException error = assertThrows(BusinessException.class, () -> service.updateCategory(1L, update));

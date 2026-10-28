@@ -5,6 +5,7 @@ import com.finance.common.result.Result;
 import com.finance.entity.Category;
 import com.finance.entity.dto.CategoryCreateDTO;
 import com.finance.entity.dto.CategoryUpdateDTO;
+import com.finance.entity.dto.CategoryReorderDTO;
 import com.finance.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -38,6 +39,7 @@ public class CategoryController {
         category.setType(dto.getType());
         category.setIcon(dto.getIcon());
         category.setSortOrder(dto.getSortOrder());
+        category.setParentId(dto.getParentId());
         categoryService.addCategory(userId, category);
         return Result.success(i18nUtil.getMessage("category.add.success"));
     }
@@ -51,7 +53,14 @@ public class CategoryController {
         category.setType(dto.getType());
         category.setIcon(dto.getIcon());
         category.setSortOrder(dto.getSortOrder());
-        categoryService.updateCategory(userId, category);
+        category.setParentId(dto.getParentId());
+        categoryService.updateCategory(userId, category, dto.isParentSpecified());
+        return Result.success(i18nUtil.getMessage("category.update.success"));
+    }
+
+    @PostMapping("/reorder")
+    public Result<Void> reorder(HttpServletRequest request, @Validated @RequestBody CategoryReorderDTO dto) {
+        categoryService.reorder((Long) request.getAttribute("userId"), dto.getId(), dto.getTargetId());
         return Result.success(i18nUtil.getMessage("category.update.success"));
     }
 

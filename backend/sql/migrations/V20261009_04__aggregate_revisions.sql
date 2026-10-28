@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS data_revision (
+ user_id BIGINT NOT NULL PRIMARY KEY,
+ revision BIGINT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT IGNORE INTO data_revision(user_id,revision) VALUES(0,0);

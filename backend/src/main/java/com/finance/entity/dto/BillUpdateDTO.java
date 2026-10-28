@@ -10,6 +10,7 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Positive;
 import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 
@@ -24,6 +25,9 @@ public class BillUpdateDTO {
 
     @NotNull(message = "分类不能为空")
     private Long categoryId;
+
+    @Positive(message = "账户ID无效")
+    private Long accountId;
 
     @NotNull(message = "金额不能为空")
     @DecimalMin(value = "0.01", message = "金额必须大于0")

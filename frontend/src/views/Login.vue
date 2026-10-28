@@ -136,17 +136,6 @@
 </template>
 
 <script setup>
-/**
- * =========================================================
- * 脚本区域 —— 业务逻辑零修改，仅保留原有逻辑
- * =========================================================
- * 修改说明：
- * - 新增 rememberMe 状态变量（记住我功能）
- * - 新增 handleForgot 占位处理（提示联系管理员）
- * - 登录按钮从 el-button 改为原生 button + 涟漪动效
- * - 其余全部保持原有登录/校验/跳转逻辑不变
- * =========================================================
- */
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'

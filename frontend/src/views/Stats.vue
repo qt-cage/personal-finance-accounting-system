@@ -19,11 +19,12 @@
           <div class="filter-controls">
             <!-- 统计维度切换：月度/年度 -->
             <el-radio-group v-model="dimType" size="default" :disabled="chartLoading" @change="onDimChange">
+              <el-radio-button value="day">{{ $t('planning.dayStats') }}</el-radio-button>
               <el-radio-button value="month">{{ $t('stats.monthStats') }}</el-radio-button>
               <el-radio-button value="year">{{ $t('stats.yearStats') }}</el-radio-button>
             </el-radio-group>
             <!-- 月度筛选 -->
-            <template v-if="dimType === 'month'">
+            <template v-if="dimType !== 'year'">
               <el-select v-model="quickType" :placeholder="$t('stats.timeType')" :disabled="chartLoading" @change="onQuickChange" class="quick-select">
                 <el-option :label="$t('stats.quickMonth')" value="month" />
                 <el-option :label="$t('stats.quickWeek')" value="week" />
@@ -64,7 +65,7 @@
         :title="$t('common.loadFailed')"
         :description="$t('common.loadFailedDescription')"
         :action-label="$t('common.retry')"
-        @retry="retryChartLoad"
+        @retry="handleQuery"
       />
       <template v-else>
         <MetricStrip :items="metricItems" />
@@ -177,24 +178,14 @@
 </template>
 
 <script setup>
-/**
- * ============================================================
- * 统计分析页 - 年度对比 + 汇总报表扩展
- *
- * 新增功能：
- * 1. 顶部一级Tab：图表分析 / 汇总报表
- * 2. 图表分析新增「年度统计」维度，含同比增长率
- * 3. 汇总报表：按月展示收入/支出/结余/环比
- * 所有图表样式、配色、居中配置零改动
- * ============================================================
- */
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as echarts from '../utils/chartRuntime'
-import { getMonthStats, getStatistics, getCategoryStats, getYearStats, getMonthSummary } from '../api/bill'
+import { getDayStats, getMonthStats, getStatistics, getCategoryStats, getYearStats, getMonthSummary } from '../api/bill'
 import { formatAmount } from '../utils/format'
-import { getCurrentWeekRange } from '../utils/businessDate'
-import { subtractAmounts, sumAmounts } from '../utils/money'
+import { escapeHtml } from '../utils/html'
+import { getQuickDateRange } from '../utils/businessDate'
+import { subtractAmounts, sumAmounts, divideAmount } from '../utils/money'
 import { buildMonthlyReport, summarizeMonthlyReport } from '../utils/monthlyReport'
 import PageHeader from '../components/PageHeader.vue'
 import MetricStrip from '../components/MetricStrip.vue'
@@ -306,29 +297,15 @@ function getColors(type) {
   return (CHART_PALETTES[currentTheme()] || CHART_PALETTES.light)[type]
 }
 
-function getLineColor(type) {
-  return getColors(type)[0]
-}
-
 function readThemeToken(name, fallback) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
-}
-
-/** 月度日期范围（防御性兜底，永不生成 -31 非法日期） */
-function calcDateRange(type) {
-  const now = new Date(); const y = now.getFullYear(); const m = now.getMonth() + 1
-  let s, e
-  if (type === 'week') { const range = getCurrentWeekRange(now); s = range.start; e = range.end }
-  else if (type === 'quarter') { const q = Math.ceil(m/3); const endM = q*3; s = y+'-'+String((q-1)*3+1).padStart(2,'0')+'-01'; const lastDay = new Date(y, endM, 0).getDate(); e = y+'-'+String(endM).padStart(2,'0')+'-'+String(lastDay).padStart(2,'0') }
-  else { const lastDay = new Date(y, m, 0).getDate(); s = y+'-'+String(m).padStart(2,'0')+'-01'; e = y+'-'+String(m).padStart(2,'0')+'-'+String(lastDay).padStart(2,'0') }
-  return { start: s, end: e }
 }
 
 /** 计算日均 */
 function calcDailyAvg(total, s, e) {
   if (total === 0||!s||!e) return 0
   const days = Math.max(1, Math.floor((new Date(e)-new Date(s))/(86400000))+1)
-  return total / days
+  return divideAmount(total, days)
 }
 
 // ============================================================
@@ -339,14 +316,14 @@ function renderLine(el, data, lastData, type) {
   if (type === 'expense') { if (expenseLineChart) { expenseLineChart.dispose(); expenseLineChart=null } expenseLineChart = echarts.init(el) }
   else { if (incomeLineChart) { incomeLineChart.dispose(); incomeLineChart=null } incomeLineChart = echarts.init(el) }
   const chart = type === 'expense' ? expenseLineChart : incomeLineChart
-  const lineColor = getLineColor(type)
+  const lineColor = getColors(type)[0]
   const hasData = data && data.length > 0
   const isYear = dimType.value === 'year'
   const valueKey = type === 'expense' ? 'expense' : 'income'
   
-  const months = isYear ? Array.from({length:12}, (_,i)=>String(i+1).padStart(2,'0')) : (hasData ? data.map(d=>d.month) : [])
-  const amounts = isYear ? months.map(m => { const f = data.find(d=>d.month?.endsWith('-'+m)); return f ? parseFloat(f[valueKey]||f.total_amount||0) : 0 }) : (hasData ? data.map(d=>parseFloat(d.total_amount||0)) : [])
-  const lastAmounts = isYear && lastData ? months.map(m => { const f = lastData.find(d=>d.month?.endsWith('-'+m)); return f ? parseFloat(f[valueKey]||f.total_amount||0) : 0 }) : []
+  const months = isYear ? Array.from({length:12}, (_,i)=>String(i+1).padStart(2,'0')) : (hasData ? data.map(d=>d.day || d.month) : [])
+  const amounts = isYear ? months.map(m => { const f = data.find(d=>d.month?.endsWith('-'+m)); return f ? (f[valueKey]??f.total_amount??0) : 0 }) : (hasData ? data.map(d=>d.total_amount||0) : [])
+  const lastAmounts = isYear && lastData ? months.map(m => { const f = lastData.find(d=>d.month?.endsWith('-'+m)); return f ? (f[valueKey]??f.total_amount??0) : 0 }) : []
   const hasLast = isYear && lastAmounts.some(v=>v>0)
 
   const tooltipBg = readThemeToken('--chart-tooltip-bg', '#242821')
@@ -368,8 +345,8 @@ function renderLine(el, data, lastData, type) {
         if (!ps||ps.length===0) return ''
         const idx = ps[0].dataIndex
         const m = months[idx]
-        let html = m + '<br/>'
-        ps.forEach(p => { html += p.marker + ' ' + p.seriesName + ': ¥' + formatAmount(p.value) + '<br/>' })
+        let html = escapeHtml(m) + '<br/>'
+        ps.forEach(p => { html += p.marker + ' ' + escapeHtml(p.seriesName) + ': ¥' + formatAmount(p.seriesIndex === 1 ? lastAmounts[idx] : amounts[idx]) + '<br/>' })
         if (hasLast && lastAmounts[idx] != null) {
           const cur = amounts[idx] || 0
           const prv = lastAmounts[idx] || 0
@@ -384,7 +361,7 @@ function renderLine(el, data, lastData, type) {
     yAxis: { type:'value', axisLabel:{color:axisColor,fontSize:12,formatter:v=>'¥'+formatAmount(v)}, splitLine:{lineStyle:{color:gridColor,type:'dashed',width:1}} },
     series: [
       hasData ? {
-        name: t('stats.thisYearData'), data: amounts, type: 'line', smooth: true,
+        name: t('stats.thisYearData'), data: amounts.map(Number), type: 'line', smooth: true,
         lineStyle: { width: 3, color: lineColor },
         areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:lineColor+'40'},{offset:1,color:lineColor+'08'}]) },
         symbol: 'circle', symbolSize: 6,
@@ -392,7 +369,7 @@ function renderLine(el, data, lastData, type) {
         itemStyle: { color: lineColor }
       } : null,
       hasLast ? {
-        name: t('stats.lastYearData'), data: lastAmounts, type: 'line', smooth: true,
+        name: t('stats.lastYearData'), data: lastAmounts.map(Number), type: 'line', smooth: true,
         lineStyle: { width: 2, color: lineColor, type: 'dashed', opacity: 0.5 },
         symbol: 'circle', symbolSize: 4,
         itemStyle: { color: lineColor, opacity: 0.5 }
@@ -429,7 +406,7 @@ function renderPie(el, data, type, totalSum) {
   const seriesData = hasData ? data.map((item,idx)=>({
     name:item.category_name,
     value:parseFloat(item.total_amount),
-    realValue:parseFloat(item.total_amount),
+    realValue:item.total_amount,
     itemStyle:{color:colors[idx%colors.length], borderWidth:2, borderColor:borderColor}
   })) : [{name:emptyText,value:1,itemStyle:{color:emptyColor,borderWidth:0}}]
   
@@ -438,7 +415,7 @@ function renderPie(el, data, type, totalSum) {
       show:true, trigger:'item', triggerOn:'mousemove', zlevel:9999, confine:true,
       backgroundColor:tooltipBg, borderColor:tooltipBorder, borderWidth:1,
       borderRadius:6, padding:[8,12], textStyle:{fontSize:13,color:tooltipText}, 
-      formatter:p => `${p.name}  ¥${formatAmount(p.value)}  ${Number(p.percent || 0).toFixed(1)}%`
+      formatter:p => `${escapeHtml(p.name)}  ¥${formatAmount(p.data?.realValue ?? p.value)}  ${Number(p.percent || 0).toFixed(1)}%`
     },
     legend: {
       orient: compact ? 'horizontal' : 'vertical',
@@ -453,7 +430,7 @@ function renderPie(el, data, type, totalSum) {
       formatter(name) {
         const source = data.find(item => item.category_name === name)
         if (!source || !totalSum) return name
-        const amount = parseFloat(source.total_amount || 0)
+        const amount = source.total_amount || 0
         return `${name}  ¥${formatAmount(amount)} · ${((amount / totalSum) * 100).toFixed(1)}%`
       },
       tooltip:{show:true},
@@ -491,15 +468,11 @@ function renderPie(el, data, type, totalSum) {
 /** 渲染全部图表 */
 function renderAllCharts() {
   if (!expenseLineRef.value || !incomeLineRef.value || !expensePieRef.value || !incomePieRef.value) return
-  if (dimType.value === 'year') {
-    renderLine(expenseLineRef.value, expenseLineData.value, expenseLineLastData.value, 'expense')
-    renderLine(incomeLineRef.value, incomeLineData.value, incomeLineLastData.value, 'income')
-  } else {
-    renderLine(expenseLineRef.value, expenseLineData.value, null, 'expense')
-    renderLine(incomeLineRef.value, incomeLineData.value, null, 'income')
-  }
-  const te = expensePieData.value.reduce((s,i)=>s+parseFloat(i.total_amount||0),0)
-  const ti = incomePieData.value.reduce((s,i)=>s+parseFloat(i.total_amount||0),0)
+  const isYear = dimType.value === 'year'
+  renderLine(expenseLineRef.value, expenseLineData.value, isYear ? expenseLineLastData.value : null, 'expense')
+  renderLine(incomeLineRef.value, incomeLineData.value, isYear ? incomeLineLastData.value : null, 'income')
+  const te = sumAmounts(expensePieData.value.map(item => item.total_amount))
+  const ti = sumAmounts(incomePieData.value.map(item => item.total_amount))
   renderPie(expensePieRef.value, expensePieData.value, 'expense', te)
   renderPie(incomePieRef.value, incomePieData.value, 'income', ti)
 }
@@ -507,21 +480,21 @@ function renderAllCharts() {
 /** 加载月度统计 */
 async function loadStatsData() {
   let start = activeRange.start, end = activeRange.end
-  if (!start) { const r = calcDateRange(quickType.value); start=r.start; end=r.end; activeRange.start=start; activeRange.end=end }
+  if (!start) { const r = getQuickDateRange(quickType.value); start=r.start; end=r.end; activeRange.start=start; activeRange.end=end }
   chartLoading.value = true
   chartError.value = ''
   try {
     const [resExp, resInc, statsRes, catExp, catInc] = await Promise.all([
-      getMonthStats({ type:1, startDate:start, endDate:end }),
-      getMonthStats({ type:2, startDate:start, endDate:end }),
+      (dimType.value==='day'?getDayStats:getMonthStats)({ type:1, startDate:start, endDate:end }),
+      (dimType.value==='day'?getDayStats:getMonthStats)({ type:2, startDate:start, endDate:end }),
       getStatistics({ startDate:start, endDate:end }),
       getCategoryStats({ type:1, startDate:start, endDate:end }),
       getCategoryStats({ type:2, startDate:start, endDate:end })
     ])
     expenseLineData.value = resExp.data||[]; incomeLineData.value = resInc.data||[]
     const s = statsRes.data||{}
-    summary.totalExpense = parseFloat(s.expense||0); summary.totalIncome = parseFloat(s.income||0)
-    summary.netBalance = parseFloat(s.balance||0); summary.dailyAvg = calcDailyAvg(summary.totalExpense, start, end)
+    summary.totalExpense = s.expense||0; summary.totalIncome = s.income||0
+    summary.netBalance = s.balance||0; summary.dailyAvg = calcDailyAvg(summary.totalExpense, start, end)
     summary.yoyExpense = null; summary.yoyIncome = null
     expensePieData.value = catExp.data||[]; incomePieData.value = catInc.data||[]
     expenseLineLastData.value = []; incomeLineLastData.value = []
@@ -579,7 +552,7 @@ async function loadYearStats() {
 async function loadReportData() {
   let start, end
   if (reportRange.value) { start = reportRange.value[0]; end = reportRange.value[1] }
-  else { const r = calcDateRange('month'); start=r.start; end=r.end; reportRange.value = [start, end] }
+  else { const r = getQuickDateRange('month'); start=r.start; end=r.end; reportRange.value = [start, end] }
   reportLoading.value = true
   reportError.value = ''
   try {
@@ -607,8 +580,7 @@ function reportSummary(param) {
 function onTabChange() { nextTick(() => { if (activeTab.value === 'table') loadReportData() }) }
 function onDimChange(val) { if (val === 'year') loadYearStats(); else loadStatsData() }
 function handleQuery() { if (dimType.value === 'year') loadYearStats(); else loadStatsData() }
-function retryChartLoad() { handleQuery() }
-function onQuickChange(val) { const r = calcDateRange(val); activeRange.start=r.start; activeRange.end=r.end; quickType.value=val; dateRange.value=null; loadStatsData() }
+function onQuickChange(val) { const r = getQuickDateRange(val); activeRange.start=r.start; activeRange.end=r.end; quickType.value=val; dateRange.value=null; loadStatsData() }
 function onDateChange(val) { if (val) { activeRange.start=val[0]; activeRange.end=val[1]; quickType.value='' } }
 
 let statsContainerObserver = null
@@ -618,10 +590,6 @@ function scheduleStatsRelayout() {
   resizeTimer = setTimeout(() => {
     renderAllCharts()
   }, 120)
-}
-
-function onWindowResize() {
-  scheduleStatsRelayout()
 }
 
 function setupStatsResizeObserver() {
@@ -655,11 +623,11 @@ function setupStatsThemeObserver() {
 }
 
 onMounted(async () => {
-  const r = calcDateRange('month')
+  const r = getQuickDateRange('month')
   activeRange.start=r.start; activeRange.end=r.end
   await nextTick(); await loadStatsData()
   statsContainerObserver = setupStatsResizeObserver()
-  window.addEventListener('resize', onWindowResize)
+  window.addEventListener('resize', scheduleStatsRelayout)
   statsThemeObserver = setupStatsThemeObserver()
 })
 
@@ -668,7 +636,7 @@ onBeforeUnmount(() => {
   stopStatsWatch()
   if (statsThemeObserver) { statsThemeObserver.disconnect(); statsThemeObserver = null }
   if (statsContainerObserver) { statsContainerObserver.disconnect(); statsContainerObserver = null }
-  window.removeEventListener('resize', onWindowResize)
+  window.removeEventListener('resize', scheduleStatsRelayout)
   disposeCharts()
 })
 </script>
@@ -705,21 +673,7 @@ onBeforeUnmount(() => {
 /* 表格卡片 */
 .table-card { padding: 0; overflow: hidden; box-shadow: var(--shadow-soft) !important; }
 .table-card :deep(.el-card__body) { padding: 12px 16px 14px; }
-.report-table { width: 100%; }
-.report-table :deep(.el-table__header th) {
-  background-color: var(--bg-table-header) !important;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-regular) !important;
-  border-bottom: 1px solid var(--border-color) !important;
-}
-.report-table :deep(.el-table__row) { height: 48px; transition: background-color 0.2s ease; }
-.report-table :deep(.el-table__row:hover) td {
-  background-color: var(--bg-table-hover) !important;
-}
 
-/* 空状态 */
-.empty-hint { text-align: center; padding: 60px 0; color: var(--text-placeholder); font-size: 14px; }
 
 @media (max-width: 1024px) {
   .stats-page :deep(.el-row) {

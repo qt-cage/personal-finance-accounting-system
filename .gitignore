@@ -8,6 +8,10 @@
 /backend/uploads/
 /logs/
 /backups/
+/_cleanup_quarantine/
+/CLEANUP_MANIFEST.md
+/PROJECT_CLEANUP_REPORT.md
+/毕业设计代码精简报告*.md
 *.log
 *.bak
 *.tmp

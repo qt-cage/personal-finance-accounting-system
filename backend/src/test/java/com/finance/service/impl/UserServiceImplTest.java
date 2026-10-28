@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
+import com.finance.service.SystemSettingsService;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -50,6 +51,7 @@ class UserServiceImplTest {
     @Spy
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    @Mock private SystemSettingsService settings;
     @InjectMocks
     private UserServiceImpl service;
 
@@ -241,6 +243,23 @@ class UserServiceImplTest {
         assertEquals(401, assertThrows(BusinessException.class,
                 () -> service.login("tester", "old-password")).getCode());
         verify(jwtUtil, never()).generateToken(any(), any(), any());
+    }
+
+    @Test
+    void administratorCannotBypassRevocationPolicyThroughSelfDeletion() {
+        User user = authenticationUser(); user.setRole("ADMIN");
+        when(userMapper.lockForAccountDeletion(1L)).thenReturn(user);
+        assertEquals(409, assertThrows(BusinessException.class, () -> service.deleteAccount(1L)).getCode());
+        verify(userMapper, never()).deleteById(any(Long.class));
+    }
+
+    @Test
+    void ordinaryAccountDeletionUsesCurrentLockedRole() {
+        User user = authenticationUser(); user.setRole("USER");
+        when(userMapper.lockForAccountDeletion(1L)).thenReturn(user);
+        service.deleteAccount(1L);
+        verify(userMapper).deleteById(1L);
+        verify(userMapper, never()).selectById(any(Long.class));
     }
 
     private User authenticationUser() {

@@ -64,11 +64,13 @@ public class JwtInterceptor implements HandlerInterceptor {
             User user = userMapper.selectById(userId);
             // 签名有效不等于会话有效：改密后的旧版本以及已注销账号都不能访问业务数据。
             if (user == null || Integer.valueOf(1).equals(user.getDeleted())
+                    || "DISABLED".equals(user.getStatus())
                     || !tokenVersion.equals(user.getTokenVersion())) {
                 writeExpired(response, request);
                 return false;
             }
             request.setAttribute("userId", userId);
+            request.setAttribute("userRole", "ADMIN".equals(user.getRole()) ? "ADMIN" : "USER");
             return true;
         } catch (JWTVerificationException e) {
             writeExpired(response, request);

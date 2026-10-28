@@ -107,9 +107,9 @@ function handleCommand(command) {
 }
 
 function handleLogout() {
-  clearProfile()
   localStorage.removeItem('token')
   localStorage.removeItem('userId')
+  clearProfile()
   router.push('/login')
 }
 </script>

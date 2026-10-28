@@ -2,7 +2,6 @@ package com.finance.common.i18n;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -28,28 +27,7 @@ public class I18nUtil {
      * @return 翻译后的消息
      */
     public String getMessage(String key) {
-        Locale locale = resolveLocale();
-        try {
-            return messageSource.getMessage(key, null, locale);
-        } catch (Exception e) {
-            return key;
-        }
-    }
-
-    /**
-     * 根据当前请求的语言获取消息，支持占位符参数
-     *
-     * @param key  消息key
-     * @param args 占位符参数
-     * @return 翻译后的消息
-     */
-    public String getMessage(String key, Object[] args) {
-        Locale locale = resolveLocale();
-        try {
-            return messageSource.getMessage(key, args, locale);
-        } catch (Exception e) {
-            return key;
-        }
+        return getMessage(key, resolveLocale());
     }
 
     /**

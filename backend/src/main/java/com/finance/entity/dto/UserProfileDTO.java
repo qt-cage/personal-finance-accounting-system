@@ -20,6 +20,7 @@ public class UserProfileDTO {
     private String language;
 
     private String theme;
+    private String role;
 
     private LocalDateTime createTime;
 
@@ -30,6 +31,7 @@ public class UserProfileDTO {
         dto.setAvatar(user.getAvatar());
         dto.setLanguage(user.getLanguage() != null ? user.getLanguage() : "zh-cn");
         dto.setTheme(user.getTheme() != null ? user.getTheme() : "light");
+        dto.setRole(user.getRole() != null ? user.getRole() : "USER");
         dto.setCreateTime(user.getCreateTime());
         return dto;
     }

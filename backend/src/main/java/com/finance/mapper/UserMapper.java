@@ -10,6 +10,12 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
+    @Select("SELECT * FROM `user` WHERE id=#{id} AND deleted=0 FOR UPDATE")
+    User lockForAccountDeletion(@Param("id") Long id);
+
+    @Select("SELECT id FROM `user` WHERE id=#{id} AND deleted=0 AND status='ACTIVE' FOR UPDATE")
+    Long lockActiveId(@Param("id") Long id);
+
     @Update("UPDATE user SET avatar = NULL WHERE id = #{userId} AND deleted = 0")
     int clearAvatar(@Param("userId") Long userId);
 

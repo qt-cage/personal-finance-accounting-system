@@ -1,12 +1,15 @@
 package com.finance.entity.dto;
 
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonSetter;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.validation.constraints.Positive;
 
 /**
  * 分类更新请求。归属用户由服务端认证上下文确定。
@@ -30,4 +33,17 @@ public class CategoryUpdateDTO {
     private String icon;
 
     private Integer sortOrder;
+
+    @Positive(message = "父分类ID无效")
+    private Long parentId;
+
+    @JsonIgnore
+    private boolean parentSpecified;
+
+    /** 兼容未传parentId的旧客户端，同时允许明确传null提升为一级分类。 */
+    @JsonSetter("parentId")
+    public void setParentId(Long parentId) {
+        this.parentId = parentId;
+        this.parentSpecified = true;
+    }
 }

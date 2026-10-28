@@ -5,7 +5,7 @@ import {
   ElDropdownMenu, ElForm, ElFormItem, ElHeader, ElIcon, ElInput, ElInputNumber,
   ElMain, ElMenu, ElMenuItem, ElOption, ElPagination, ElProgress, ElRadio,
   ElRadioButton, ElRadioGroup, ElResult, ElRow, ElSelect, ElSkeleton, ElTabPane,
-  ElTable, ElTableColumn, ElTabs, ElTag, ElTooltip, ElLoading
+  ElTable, ElTableColumn, ElTabs, ElTag, ElLoading
 } from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
@@ -22,7 +22,7 @@ for (const component of [
   ElDropdownMenu, ElForm, ElFormItem, ElHeader, ElIcon, ElInput, ElInputNumber,
   ElMain, ElMenu, ElMenuItem, ElOption, ElPagination, ElProgress, ElRadio,
   ElRadioButton, ElRadioGroup, ElResult, ElRow, ElSelect, ElSkeleton, ElTabPane,
-  ElTable, ElTableColumn, ElTabs, ElTag, ElTooltip, ElLoading
+  ElTable, ElTableColumn, ElTabs, ElTag, ElLoading
 ]) app.use(component)
 app.use(router)
 app.use(i18n)

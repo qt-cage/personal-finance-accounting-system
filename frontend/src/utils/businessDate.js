@@ -28,3 +28,16 @@ export function getMonthDateRange(month = formatLocalMonth()) {
   const lastDay = new Date(Number(match[1]), Number(match[2]), 0).getDate()
   return { startDate: `${month}-01`, endDate: `${month}-${lastDay}` }
 }
+
+// 快捷筛选共用同一日历边界；本周截至今天，月/季度截至期末。
+export function getQuickDateRange(type, date = new Date()) {
+  validDate(date)
+  if (type === 'week') return getCurrentWeekRange(date)
+  const year = date.getFullYear()
+  const firstMonth = type === 'quarter' ? Math.floor(date.getMonth() / 3) * 3 : date.getMonth()
+  const months = type === 'quarter' ? 3 : 1
+  return {
+    start: formatLocalDate(new Date(year, firstMonth, 1)),
+    end: formatLocalDate(new Date(year, firstMonth + months, 0))
+  }
+}

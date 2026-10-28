@@ -1,4 +1,5 @@
 package com.finance.service.impl;
+import com.finance.service.DataRevisionService;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.finance.common.exception.BusinessException;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
+import com.finance.service.NotificationService;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -34,6 +36,10 @@ class BillServiceImplTest {
     @Mock
     private CategoryMapper categoryMapper;
 
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock private DataRevisionService revision;
     @InjectMocks
     private BillServiceImpl service;
 

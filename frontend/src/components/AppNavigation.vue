@@ -2,7 +2,7 @@
   <div class="app-navigation">
     <div class="nav-brand">
       <span class="nav-brand-mark" aria-hidden="true"></span>
-      <span class="nav-brand-name">{{ $t('nav.systemName') }}</span>
+      <span class="nav-brand-name">{{ siteName || $t('nav.systemName') }}</span>
     </div>
 
     <el-menu
@@ -19,6 +19,10 @@
         <el-icon><Document /></el-icon>
         <span>{{ $t('nav.bill') }}</span>
       </el-menu-item>
+      <el-menu-item index="/account" :aria-label="$t('finance.accountTitle')" :title="$t('finance.accountTitle')">
+        <el-icon><Wallet /></el-icon>
+        <span>{{ $t('finance.accountTitle') }}</span>
+      </el-menu-item>
       <el-menu-item index="/category" :aria-label="$t('nav.category')" :title="$t('nav.category')">
         <el-icon><Menu /></el-icon>
         <span>{{ $t('nav.category') }}</span>
@@ -31,12 +35,24 @@
         <el-icon><TrendCharts /></el-icon>
         <span>{{ $t('nav.stats') }}</span>
       </el-menu-item>
+      <el-menu-item index="/recurring" :aria-label="$t('planning.recurringTitle')" :title="$t('planning.recurringTitle')"><el-icon><Document /></el-icon><span>{{ $t('planning.recurringTitle') }}</span></el-menu-item>
+      <el-menu-item index="/assets" :aria-label="$t('planning.assetsTitle')" :title="$t('planning.assetsTitle')"><el-icon><DataAnalysis /></el-icon><span>{{ $t('planning.assetsTitle') }}</span></el-menu-item>
+      <el-menu-item index="/notifications" :aria-label="$t('files.messages')" :title="$t('files.messages')"><el-icon><Bell /></el-icon><span>{{ $t('files.messages') }}</span></el-menu-item>
+      <el-menu-item v-if="profile.role === 'ADMIN'" index="/admin" :aria-label="$t('admin.title')" :title="$t('admin.title')"><el-icon><Setting /></el-icon><span>{{ $t('admin.title') }}</span></el-menu-item>
     </el-menu>
   </div>
 </template>
 
 <script setup>
-import { DataAnalysis, Document, Menu, Wallet, TrendCharts } from '@element-plus/icons-vue'
+import { DataAnalysis, Document, Menu, Wallet, TrendCharts, Bell, Setting } from '@element-plus/icons-vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useCurrentUser } from '../composables/useCurrentUser'
+import { getSystemSettings } from '../api/admin'
+const { profile } = useCurrentUser()
+const siteName = ref('')
+async function loadSettings() { try { siteName.value = (await getSystemSettings()).data.siteName } catch {} }
+onMounted(() => { loadSettings(); window.addEventListener('system:settings-changed', loadSettings) })
+onBeforeUnmount(() => window.removeEventListener('system:settings-changed', loadSettings))
 
 defineEmits(['navigate'])
 </script>
@@ -74,6 +90,9 @@ defineEmits(['navigate'])
 }
 
 .nav-brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--nav-ink);
   font-size: 14px;
   font-weight: 600;
@@ -159,4 +178,3 @@ defineEmits(['navigate'])
   }
 }
 </style>
-

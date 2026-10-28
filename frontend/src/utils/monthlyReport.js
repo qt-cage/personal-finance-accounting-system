@@ -1,4 +1,4 @@
-import { amountToCents, subtractAmounts, sumAmounts } from './money.js'
+import { normalizeAmount, exactCents, subtractAmounts, sumAmounts } from './money.js'
 
 function monthIndex(month) {
   const [year, number] = month.split('-').map(Number)
@@ -8,10 +8,10 @@ function monthIndex(month) {
 export function buildMonthlyReport(rows) {
   const sorted = [...rows].sort((left, right) => left.month.localeCompare(right.month))
   return sorted.map((row, index) => {
-    const income = amountToCents(row.income) / 100
-    const expense = amountToCents(row.expense) / 100
+    const income = normalizeAmount(row.income)
+    const expense = normalizeAmount(row.expense)
     const previous = sorted[index - 1]
-    const previousExpense = previous ? amountToCents(previous.expense) : 0
+    const previousExpense = previous ? exactCents(previous.expense) : 0n
     const isPreviousMonth = previous && monthIndex(row.month) - monthIndex(previous.month) === 1
     return {
       month: row.month,
@@ -19,8 +19,8 @@ export function buildMonthlyReport(rows) {
       expense,
       balance: subtractAmounts(income, expense),
       // 缺月或上月为零时没有可计算的环比，不把跨月比较显示为月环比。
-      momRatio: isPreviousMonth && previousExpense > 0
-        ? (amountToCents(expense) - previousExpense) / previousExpense * 100
+      momRatio: isPreviousMonth && previousExpense > 0n
+        ? Number(exactCents(expense) - previousExpense) / Number(previousExpense) * 100
         : null
     }
   })

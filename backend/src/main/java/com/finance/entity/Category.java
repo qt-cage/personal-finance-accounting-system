@@ -13,6 +13,10 @@ public class Category {
 
     private Long userId;
 
+    // 本项目3.5.3.1用IGNORED显式写入null；服务层区分未传字段与主动清除父分类。
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
+    private Long parentId;
+
     private String name;
 
     private Integer type;

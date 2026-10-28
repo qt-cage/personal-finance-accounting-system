@@ -15,3 +15,7 @@ export function updateCategory(data) {
 export function deleteCategory(id) {
   return request.delete(`/category/${id}`)
 }
+
+export function reorderCategories(data) {
+  return request.post('/category/reorder', data)
+}

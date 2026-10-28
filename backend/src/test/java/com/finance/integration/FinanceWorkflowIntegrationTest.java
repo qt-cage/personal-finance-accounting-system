@@ -131,6 +131,47 @@ class FinanceWorkflowIntegrationTest {
         } finally { executor.shutdownNow(); }
     }
 
+    @Test
+    void summariesAndBillReadModelsPreserveDatesOwnershipAndCategoryMetadata() {
+        Account a = account();
+        Account b = account();
+        long category = category(a, "Daily", 1);
+        jdbc.update("UPDATE category SET icon='food' WHERE id=?", category);
+        for (String date : Arrays.asList("2027-12-31", "2028-02-01", "2028-02-29", "2029-01-01")) {
+            success(call(a.token, HttpMethod.POST, "/api/bill", fields(
+                    "categoryId", category, "type", 1, "amount", "0.10", "billDate", date)));
+        }
+        long income = category(a, "Salary", 2);
+        success(call(a.token, HttpMethod.POST, "/api/bill", fields(
+                "categoryId", income, "type", 2, "amount", "0.30", "billDate", "2028-12-31")));
+        success(call(a.token, HttpMethod.POST, "/api/bill", fields(
+                "categoryId", category, "type", 1, "amount", "99.00", "billDate", "2028-02-15")));
+        long deleted = jdbc.queryForObject("SELECT id FROM bill WHERE user_id=? AND amount=99.00", Long.class, a.id);
+        success(call(a.token, HttpMethod.DELETE, "/api/bill/" + deleted, null));
+        long otherCategory = category(b, "Private", 1);
+        success(call(b.token, HttpMethod.POST, "/api/bill", fields(
+                "categoryId", otherCategory, "type", 1, "amount", "100.00", "billDate", "2028-02-01")));
+
+        JsonNode annual = call(a.token, HttpMethod.GET, "/api/bill/year-stats?year=2028", null).path("data");
+        JsonNode monthly = call(a.token, HttpMethod.GET,
+                "/api/bill/month-summary?startDate=2028-01-01&endDate=2028-12-31", null).path("data");
+        assertEquals(annual, monthly);
+        assertEquals(2, annual.size());
+        assertEquals("2028-02", annual.get(0).path("month").asText());
+        assertEquals(0, annual.get(0).path("expense").decimalValue().compareTo(new java.math.BigDecimal("0.20")));
+        assertEquals("2028-12", annual.get(1).path("month").asText());
+        assertEquals(0, annual.get(1).path("income").decimalValue().compareTo(new java.math.BigDecimal("0.30")));
+
+        JsonNode page = call(a.token, HttpMethod.GET, "/api/bill/page?size=5", null).path("data");
+        JsonNode recent = call(a.token, HttpMethod.GET, "/api/bill/recent", null).path("data");
+        assertEquals(5, page.path("total").asInt());
+        assertEquals(page.path("records"), recent);
+        assertEquals("2029-01-01", recent.get(0).path("billDate").asText());
+        assertEquals("Daily", recent.get(0).path("categoryName").asText());
+        assertEquals("food", recent.get(0).path("categoryIcon").asText());
+        assertEquals("Salary", recent.get(1).path("categoryName").asText());
+    }
+
     private Account account() {
         Account account = new Account();
         account.name = "qa_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);

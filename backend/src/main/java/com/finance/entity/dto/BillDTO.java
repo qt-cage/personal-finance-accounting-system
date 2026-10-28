@@ -10,6 +10,9 @@ public class BillDTO {
     @NotNull(message = "分类不能为空")
     private Long categoryId;
 
+    @Positive(message = "账户ID无效")
+    private Long accountId;
+
     @NotNull(message = "金额不能为空")
     @DecimalMin(value = "0.01", message = "金额必须大于0")
     @DecimalMax(value = "9999999999.99", message = "金额超出允许范围")

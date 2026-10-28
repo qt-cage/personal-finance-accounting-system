@@ -7,6 +7,7 @@ import org.apache.ibatis.exceptions.PersistenceException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.BadSqlGrammarException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -14,6 +15,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,11 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse(i18nUtil.getMessage("validation.failed"));
         return Result.error(400, message);
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, DateTimeParseException.class})
+    public Result<Void> handleMalformedRequest(Exception error) {
+        return Result.error(400, i18nUtil.getMessage("validation.failed"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

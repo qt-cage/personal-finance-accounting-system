@@ -10,9 +10,11 @@ import com.finance.entity.dto.UserProfileDTO;
 import com.finance.mapper.UserMapper;
 import com.finance.service.AvatarStorageService;
 import com.finance.service.UserService;
+import com.finance.service.SystemSettingsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
@@ -44,6 +46,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private AvatarStorageService avatarStorageService;
 
+    @Autowired private SystemSettingsService settings;
+
     // ============================================================
     // 登录：BCrypt 密码校验
     // 兼容逻辑：若数据库存的是明文（老数据），自动升级为密文并回写
@@ -53,7 +57,7 @@ public class UserServiceImpl implements UserService {
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, username)
         );
-        if (user == null) {
+        if (user == null || "DISABLED".equals(user.getStatus())) {
             throw new BusinessException(401, i18nUtil.getMessage("user.login.error"));
         }
         // 先判断是否为 BCrypt 密文，若是则用 matches 校验；若不是则比对明文并自动升级
@@ -81,6 +85,7 @@ public class UserServiceImpl implements UserService {
         result.put("userId", user.getId());
         result.put("username", user.getUsername());
         result.put("nickname", user.getNickname());
+        result.put("role", "ADMIN".equals(user.getRole()) ? "ADMIN" : "USER");
         // 返回用户语言偏好
         result.put("language", user.getLanguage() != null ? user.getLanguage() : "zh-cn");
         // 返回用户主题偏好
@@ -93,6 +98,7 @@ public class UserServiceImpl implements UserService {
     // ============================================================
     @Override
     public void register(String username, String password, String nickname) {
+        if(settings.registrationClosed())throw new BusinessException(403,"当前暂不开放注册");
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, username)
         );
@@ -109,6 +115,7 @@ public class UserServiceImpl implements UserService {
         // 新注册用户默认亮色主题
         user.setTheme("light");
         user.setTokenVersion(0);
+        user.setRole("USER");user.setStatus("ACTIVE");
         userMapper.insert(user);
     }
 
@@ -122,10 +129,10 @@ public class UserServiceImpl implements UserService {
         if (avatar != null) {
             throw new BusinessException(400, "请通过头像上传或移除接口修改头像");
         }
-        validateProfile(nickname, avatar, language, theme);
+        validateProfile(nickname, language, theme);
         User user = new User();
         user.setId(userId);
-        user.setNickname(trimNickname(nickname));
+        user.setNickname(nickname == null ? null : nickname.trim());
         user.setLanguage(language);
         user.setTheme(theme);
         userMapper.updateById(user);
@@ -182,7 +189,7 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-    private void validateProfile(String nickname, String avatar, String language, String theme) {
+    private void validateProfile(String nickname, String language, String theme) {
         if (nickname != null && nickname.trim().length() > 50) {
             throw new BusinessException(400, i18nUtil.getMessage("user.nickname.length"));
         }
@@ -192,10 +199,6 @@ public class UserServiceImpl implements UserService {
         if (theme != null && !SUPPORTED_THEMES.contains(theme)) {
             throw new BusinessException(400, i18nUtil.getMessage("user.theme.unsupported"));
         }
-    }
-
-    private String trimNickname(String nickname) {
-        return nickname == null ? null : nickname.trim();
     }
 
     // ============================================================
@@ -225,10 +228,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void deleteAccount(Long userId) {
-        User user = userMapper.selectById(userId);
+        // 与角色变更竞争时读取锁定后的最新角色；管理员须先由其他管理员撤权。
+        User user = userMapper.lockForAccountDeletion(userId);
         if (user != null) {
-            // 逻辑删除用户
+            if ("ADMIN".equals(user.getRole())) {
+                throw new BusinessException(409, "管理员须先由其他管理员撤销权限，再注销账号");
+            }
             userMapper.deleteById(userId);
         }
     }

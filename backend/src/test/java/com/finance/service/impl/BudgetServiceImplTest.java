@@ -1,4 +1,5 @@
 package com.finance.service.impl;
+import com.finance.service.DataRevisionService;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.finance.common.exception.BusinessException;
@@ -11,6 +12,7 @@ import com.finance.mapper.CategoryMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import com.finance.service.NotificationService;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,6 +38,10 @@ class BudgetServiceImplTest {
     @Mock
     private I18nUtil i18nUtil;
 
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock private DataRevisionService revision;
     @InjectMocks
     private BudgetServiceImpl service;
 
@@ -47,10 +53,10 @@ class BudgetServiceImplTest {
         category.setName("餐饮");
         when(budgetMapper.selectList(any(Wrapper.class))).thenReturn(Arrays.asList(categoryBudget, totalBudget));
         when(categoryMapper.selectList(any(Wrapper.class))).thenReturn(Collections.singletonList(category));
-        when(billMapper.sumByCategoryAndDateRange(1L, 10L, 1, "2026-02-01", "2026-02-28"))
-                .thenReturn(new BigDecimal("120.00"));
-        when(billMapper.sumByTypeAndDateRange(1L, 1, "2026-02-01", "2026-02-28"))
-                .thenReturn(new BigDecimal("500.00"));
+        java.util.Map<String,Object> dining=new java.util.HashMap<>(),other=new java.util.HashMap<>();
+        dining.put("category_id",10L);dining.put("total_amount",new BigDecimal("120.00"));
+        other.put("category_id",11L);other.put("total_amount",new BigDecimal("380.00"));
+        when(billMapper.expenseByCategory(1L, "2026-02-01", "2026-02-28")).thenReturn(Arrays.asList(dining,other));
         when(i18nUtil.getMessage("budget.total")).thenReturn("总预算");
 
         List<Budget> result = service.listByMonth(1L, "2026-02");

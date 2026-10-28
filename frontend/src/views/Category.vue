@@ -39,7 +39,8 @@
         :action-label="$t('common.retry')"
         @retry="loadCategories"
       />
-      <el-table v-else :data="activeCategories" stripe class="category-table" :empty-text="$t('common.noData')">
+      <p class="category-hierarchy-hint">{{ $t('finance.categoryHint') }}</p>
+      <el-table v-if="!loading && !loadError" :data="treeCategories" row-key="id" default-expand-all stripe class="category-table" :empty-text="$t('common.noData')">
         <!-- 分类名称 -->
         <el-table-column prop="name" :label="$t('category.categoryName')" min-width="140" />
         <!-- 图标列（Element Plus 内置图标渲染） -->
@@ -67,7 +68,7 @@
         <el-table-column :label="$t('common.operation')" width="150" fixed="right" align="right">
           <template #default="{ row }">
             <el-button type="primary" text size="small" :disabled="row.userId === 0" @click="openDialog(row)">{{ $t('common.edit') }}</el-button>
-            <el-button type="danger" text size="small" :disabled="row.userId === 0" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+            <el-button type="danger" text size="small" :disabled="row.userId === 0 || !!row.children?.length" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -79,7 +80,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? $t('category.editCategory') : $t('category.addCategory')"
-      width="500px"
+      width="min(500px, calc(100vw - 32px))"
       :close-on-click-modal="false"
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
@@ -95,6 +96,11 @@
             <el-radio :value="2">{{ $t('bill.income') }}</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item :label="$t('finance.parentCategory')" prop="parentId">
+          <el-select v-model="form.parentId" :placeholder="$t('finance.topLevel')" clearable :disabled="hasChildren" style="width:100%">
+            <el-option v-for="parent in availableParents" :key="parent.id" :label="parent.name" :value="parent.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item :label="$t('category.sortOrder')" prop="sortOrder">
           <el-input-number v-model="form.sortOrder" :min="0" :step="1" style="width: 100%" controls-position="right" />
         </el-form-item>
@@ -108,21 +114,7 @@
 </template>
 
 <script setup>
-/**
- * ============================================================
- * 分类管理页 - 优化版
- *
- * 优化内容（毕设文档可用）：
- * 1. 统一大卡片包裹，和账单页/预算页视觉对齐
- * 2. 顶部Flex两端对齐：Tab(左) + 按钮(右)
- * 3. 图标列使用Element Plus内置图标组件渲染
- * 4. 上移/下移调整排序（前端交换+后端更新）
- * 5. 删除二次确认弹窗，防止误删
- * 6. 全量多语言 i18n 适配
- * 7. 斑马纹表格、统一行高、hover浅蓝高亮
- * ============================================================
- */
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Promotion, Food, Van, ShoppingCart, Goods,
@@ -130,10 +122,11 @@ import {
   School, TrendCharts, Money, Coin, Wallet,
   HelpFilled
 } from '@element-plus/icons-vue'
-import { getCategoryList, addCategory, updateCategory, deleteCategory } from '../api/category'
+import { getCategoryList, addCategory, updateCategory, deleteCategory, reorderCategories } from '../api/category'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '../components/PageHeader.vue'
 import AppState from '../components/AppState.vue'
+import { categoryTree } from '../utils/categoryHierarchy'
 
 const { t } = useI18n()
 
@@ -142,11 +135,12 @@ const categories = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
+const moving = ref(false)
 const formRef = ref()
 const loading = ref(false)
 const loadError = ref('')
 
-const form = reactive({ id: null, name: '', type: 1, icon: '', sortOrder: 0 })
+const form = reactive({ id: null, name: '', type: 1, icon: '', sortOrder: 0, parentId: null })
 
 const rules = {
   name: [{ required: true, message: t('validation.categoryNameRequired'), trigger: 'blur' }],
@@ -161,6 +155,10 @@ const activeCategories = computed(() =>
 const editableCategories = computed(() =>
   activeCategories.value.filter(c => c.userId !== 0)
 )
+const treeCategories = computed(() => categoryTree(activeCategories.value))
+const availableParents = computed(() => categories.value.filter(category => category.type === form.type && category.parentId == null && category.id !== form.id))
+const hasChildren = computed(() => !!form.id && categories.value.some(category => category.parentId === form.id))
+watch(() => form.type, () => { if (!availableParents.value.some(category => category.id === form.parentId)) form.parentId = null })
 
 /* Element Plus 图标映射 */
 const iconMap = {
@@ -192,15 +190,16 @@ async function loadCategories() {
 function openDialog(row) {
   isEdit.value = !!row
   if (row) {
-    Object.assign(form, { id: row.id, name: row.name, type: row.type, icon: row.icon, sortOrder: row.sortOrder })
+    Object.assign(form, { id: row.id, name: row.name, type: row.type, icon: row.icon, sortOrder: row.sortOrder, parentId: row.parentId })
   } else {
-    Object.assign(form, { id: null, name: '', type: parseInt(activeTab.value), icon: '', sortOrder: 0 })
+    Object.assign(form, { id: null, name: '', type: parseInt(activeTab.value), icon: '', sortOrder: 0, parentId: null })
   }
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 async function handleSubmit() {
-  await formRef.value.validate()
+  if (submitting.value || !await formRef.value.validate().catch(() => false)) return
   submitting.value = true
   try {
     if (isEdit.value) {
@@ -209,56 +208,54 @@ async function handleSubmit() {
         name: form.name,
         type: form.type,
         icon: form.icon,
-        sortOrder: form.sortOrder
+        sortOrder: form.sortOrder,
+        parentId: form.parentId
       })
     } else {
       await addCategory({
         name: form.name,
         type: form.type,
         icon: form.icon,
-        sortOrder: form.sortOrder
+        sortOrder: form.sortOrder,
+        parentId: form.parentId
       })
     }
     ElMessage.success(isEdit.value ? t('message.updateSuccess') : t('message.addSuccess'))
     dialogVisible.value = false
     loadCategories()
-  } finally {
+  } catch { /* 请求层展示错误，保留分类表单。 */ }
+  finally {
     submitting.value = false
   }
 }
 
-/** 上移/下移（前端交换sortOrder + 后端更新） */
+/** 由服务端在一个事务中完成相邻分类移动。 */
 function canMove(row, direction) {
-  if (row.userId === 0) return false
-  const index = editableCategories.value.findIndex(item => item.id === row.id)
-  return index >= 0 && index + direction >= 0 && index + direction < editableCategories.value.length
+  if (moving.value || row.userId === 0) return false
+  const siblings = editableCategories.value.filter(item => (item.parentId || null) === (row.parentId || null))
+  const index = siblings.findIndex(item => item.id === row.id)
+  return index >= 0 && index + direction >= 0 && index + direction < siblings.length
 }
 
 async function handleMove(row, direction) {
-  const list = editableCategories.value
+  if (moving.value) return
+  const list = editableCategories.value.filter(item => (item.parentId || null) === (row.parentId || null))
   const index = list.findIndex(item => item.id === row.id)
   const targetIndex = index + direction
   if (targetIndex < 0 || targetIndex >= list.length) return
 
   const target = list[targetIndex]
 
-  // 临时保存原始sortOrder
-  const rowOrder = row.sortOrder
-  const targetOrder = target.sortOrder
-
-  // 前端交换
-  row.sortOrder = targetOrder
-  target.sortOrder = rowOrder
-
-  // 调用后端更新接口（按序更新两条）
+  moving.value = true
   try {
-    await updateCategory({ id: row.id, name: row.name, type: row.type, icon: row.icon, sortOrder: targetOrder })
-    await updateCategory({ id: target.id, name: target.name, type: target.type, icon: target.icon, sortOrder: rowOrder })
+    await reorderCategories({ id: row.id, targetId: target.id })
     ElMessage.success(t('message.updateSuccess'))
     await loadCategories()
   } catch (e) {
     ElMessage.error(t('message.requestFailed'))
-    loadCategories()
+    await loadCategories()
+  } finally {
+    moving.value = false
   }
 }
 
@@ -273,6 +270,7 @@ onMounted(() => loadCategories())
 </script>
 
 <style scoped>
+.category-hierarchy-hint { color: var(--text-secondary); font-size: 13px; line-height: 1.7; margin: 0 0 16px; }
 /* ============================================================
    分类管理页样式 - 和账单页/预算页100%统一
    圆角12px、柔和阴影、Flex两端对齐
@@ -330,23 +328,6 @@ onMounted(() => loadCategories())
 }
 
 /* 表格覆盖 */
-.category-table {
-  width: 100%;
-}
-.category-table :deep(.el-table__header th) {
-  background-color: var(--bg-table-header) !important;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-regular) !important;
-  border-bottom: 1px solid var(--border-color) !important;
-}
-.category-table :deep(.el-table__row) {
-  height: 48px;
-  transition: background-color 0.2s ease;
-}
-.category-table :deep(.el-table__row:hover) td {
-  background-color: var(--bg-table-hover) !important;
-}
 
 @media (max-width: 720px) {
   .page-card :deep(.el-card__body) {

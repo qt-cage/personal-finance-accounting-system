@@ -17,18 +17,14 @@
 
   /* 卡片背景：微渐变（顶部更亮模拟顶光） */
   --bg-card: #fbfaf6;
-  --bg-card-gradient: #fbfaf6;
-  --bg-card-solid: #fbfaf6;
   --bg-header: rgba(248, 246, 239, 0.96);
   --bg-sidebar: #10251a;
-  --bg-sidebar-deep: #0c1d14;
   --bg-menu-hover: rgba(45, 90, 74, 0.075);
   --bg-table-header: #f5f2ea;
   --bg-table-stripe: rgba(45, 90, 74, 0.025);
   --bg-table-hover: rgba(45, 90, 74, 0.055);
   --bg-input: #fffefa;
   --bg-input-gradient: #fffefa;
-  --bg-input-focus: #fffefa;
   --bg-mask: rgba(0, 0, 0, 0.40);
 
   /* 文字色：黑灰梯度（Linear 风格） */
@@ -45,11 +41,8 @@
   --border-strong: rgba(44, 48, 40, 0.17);
 
   /* 阴影：3D 多层阴影（顶光 + 侧光 + 投影） */
-  --shadow-card: 0 1px 2px rgba(39, 43, 35, 0.035), 0 8px 20px rgba(39, 43, 35, 0.035);
   --shadow-hover: 0 2px 4px rgba(39, 43, 35, 0.05), 0 12px 28px rgba(39, 43, 35, 0.055);
   --shadow-soft: 0 1px 2px rgba(39, 43, 35, 0.03), 0 5px 14px rgba(39, 43, 35, 0.025);
-  --workspace-fiber-dark: rgba(54, 52, 43, 0.055);
-  --workspace-fiber-light: rgba(255, 255, 255, 0.45);
 
   /* 主题色：墨绿色（与登录页复古墨绿艺术风格成套） */
   --color-primary: #2d5a4a;
@@ -58,7 +51,6 @@
   --color-primary-gradient: linear-gradient(180deg, #3d6b57 0%, #2d5a4a 50%, #1f4d3a 100%);
   --color-success: #3a7d5c;
   --color-success-light: #eef5f0;
-  --color-success-gradient: #3a7d5c;
   --color-danger: #c97a4a;
   --color-danger-light: #faf0e8;
   --color-warning: #d97706;
@@ -71,10 +63,6 @@
   --chart-empty: #d4d4d8;
 
   /* 圆角：适度加大（3D 卡片需要更柔和的圆角） */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
 
   /* ============================================================
      Element Plus 官方变量注入（亮色）
@@ -123,27 +111,14 @@
   --el-color-info-light-8: #e3e3e6;
   --el-color-info-light-9: #f1f1f2;
   --el-color-info-dark-2: #5a5a62;
-  --el-text-color-primary: var(--text-primary);
-  --el-text-color-regular: var(--text-regular);
-  --el-text-color-secondary: var(--text-secondary);
-  --el-text-color-placeholder: var(--text-placeholder);
-  --el-text-color-disabled: var(--text-placeholder);
-  --el-border-color: var(--border-strong);
-  --el-border-color-hover: var(--text-placeholder);
-  --el-border-color-light: var(--border-color);
-  --el-border-color-lighter: var(--border-light);
-  --el-border-color-extra-light: var(--border-lighter);
   --el-bg-color: var(--bg-card);
   --el-bg-color-page: var(--bg-page);
   --el-bg-color-overlay: var(--bg-card);
-  --el-fill-color: var(--bg-menu-hover);
   --el-fill-color-light: #fafafa;
   --el-fill-color-lighter: #fafbfc;
   --el-fill-color-blank: var(--bg-card);
-  --el-border-radius-base: var(--radius-md);
-  --el-border-radius-small: var(--radius-sm);
-  --el-mask-color: var(--bg-mask);
-  --el-box-shadow-light: var(--shadow-soft);
+  --workspace-fiber-dark: rgba(54, 52, 43, 0.055);
+  --workspace-fiber-light: rgba(255, 255, 255, 0.45);
 }
 
 /* ---------- 暗色模式（暗森林墨绿基调 + 3D）---------- */
@@ -154,11 +129,8 @@
 
   /* 卡片背景：微渐变（带绿调，顶部更亮模拟顶光） */
   --bg-card: #202722;
-  --bg-card-gradient: #202722;
-  --bg-card-solid: #202722;
   --bg-header: rgba(27, 34, 29, 0.97);
   --bg-sidebar: #161e1a;
-  --bg-sidebar-deep: #121a15;
   /* hover/激活态背景（第三级） */
   --bg-menu-hover: rgba(120, 144, 120, 0.12);
   --bg-table-header: #1b211d;
@@ -166,7 +138,6 @@
   --bg-table-hover: rgba(120, 144, 120, 0.09);
   --bg-input: #1b211d;
   --bg-input-gradient: #1b211d;
-  --bg-input-focus: #232c26;
   --bg-mask: rgba(0, 0, 0, 0.80);
 
   /* 文字色：高对比度 */
@@ -183,11 +154,8 @@
   --border-strong: rgba(255, 255, 255, 0.12);
 
   /* 阴影：3D 多层阴影（暗色模式用黑色更黑 + 白色高光） */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 9px 24px rgba(0, 0, 0, 0.16);
   --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.28), 0 12px 30px rgba(0, 0, 0, 0.20);
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.20), 0 6px 16px rgba(0, 0, 0, 0.12);
-  --workspace-fiber-dark: rgba(0, 0, 0, 0.16);
-  --workspace-fiber-light: rgba(218, 207, 183, 0.055);
 
   /* 主题色：翡翠绿（暗底下提亮，保持墨绿血统） */
   --color-primary: #789078;
@@ -196,7 +164,6 @@
   --color-primary-gradient: #789078;
   --color-success: #829b7f;
   --color-success-light: rgba(130, 155, 127, 0.14);
-  --color-success-gradient: #829b7f;
   --color-danger: #c88964;
   --color-danger-light: rgba(200, 137, 100, 0.14);
   --color-warning: #b99a63;
@@ -207,11 +174,6 @@
   --chart-tooltip-bg: #1e2a24;
   --chart-tooltip-border: rgba(255, 255, 255, 0.10);
   --chart-empty: #3f3f46;
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
 
   /* Element Plus 官方变量注入（暗色） */
   --el-color-primary: #789078;
@@ -256,27 +218,14 @@
   --el-color-info-light-8: #243029;
   --el-color-info-light-9: #1e2a24;
   --el-color-info-dark-2: rgba(255, 255, 255, 0.85);
-  --el-text-color-primary: var(--text-primary);
-  --el-text-color-regular: var(--text-regular);
-  --el-text-color-secondary: var(--text-secondary);
-  --el-text-color-placeholder: var(--text-placeholder);
-  --el-text-color-disabled: var(--text-placeholder);
-  --el-border-color: var(--border-strong);
-  --el-border-color-hover: var(--text-placeholder);
-  --el-border-color-light: var(--border-color);
-  --el-border-color-lighter: var(--border-light);
-  --el-border-color-extra-light: var(--border-lighter);
   --el-bg-color: #202722;
   --el-bg-color-page: #171d19;
   --el-bg-color-overlay: #252e28;
-  --el-fill-color: var(--bg-menu-hover);
   --el-fill-color-light: #252e28;
   --el-fill-color-lighter: #202722;
   --el-fill-color-blank: #202722;
-  --el-border-radius-base: var(--radius-md);
-  --el-border-radius-small: var(--radius-sm);
-  --el-mask-color: var(--bg-mask);
-  --el-box-shadow-light: var(--shadow-soft);
+  --workspace-fiber-dark: rgba(0, 0, 0, 0.16);
+  --workspace-fiber-light: rgba(218, 207, 183, 0.055);
 }
 
 /* ---------- 护眼模式 ---------- */
@@ -285,18 +234,14 @@
   --bg-page-gradient: #e8dfcf;
 
   --bg-card: #f7f0e3;
-  --bg-card-gradient: #f7f0e3;
-  --bg-card-solid: #f7f0e3;
   --bg-header: rgba(244, 237, 224, 0.97);
   --bg-sidebar: #fdfcf9;
-  --bg-sidebar-deep: #f7f5f0;
   --bg-menu-hover: rgba(91, 122, 94, 0.085);
   --bg-table-header: #efe6d6;
   --bg-table-stripe: rgba(91, 74, 50, 0.025);
   --bg-table-hover: rgba(91, 122, 94, 0.065);
   --bg-input: #fbf5ea;
   --bg-input-gradient: #fbf5ea;
-  --bg-input-focus: #fbf5ea;
   --bg-mask: rgba(60, 50, 30, 0.40);
 
   --text-primary: #2d2a24;
@@ -309,12 +254,8 @@
   --border-light: rgba(60, 50, 30, 0.06);
   --border-lighter: rgba(60, 50, 30, 0.04);
   --border-strong: rgba(60, 50, 30, 0.12);
-
-  --shadow-card: 0 1px 2px rgba(76, 62, 40, 0.045), 0 8px 20px rgba(76, 62, 40, 0.04);
   --shadow-hover: 0 2px 4px rgba(76, 62, 40, 0.06), 0 12px 28px rgba(76, 62, 40, 0.06);
   --shadow-soft: 0 1px 2px rgba(76, 62, 40, 0.04), 0 5px 14px rgba(76, 62, 40, 0.035);
-  --workspace-fiber-dark: rgba(78, 61, 40, 0.065);
-  --workspace-fiber-light: rgba(255, 248, 232, 0.38);
 
   --color-primary: #5b7a5e;
   --color-primary-hover: #4a684e;
@@ -322,7 +263,6 @@
   --color-primary-gradient: linear-gradient(180deg, #7a9a7d 0%, #5b7a5e 50%, #4a684e 100%);
   --color-success: #5b7a5e;
   --color-success-light: #eef3ee;
-  --color-success-gradient: #5b7a5e;
   --color-danger: #b85450;
   --color-danger-light: #faf0ee;
   --color-warning: #b8893c;
@@ -332,11 +272,6 @@
   --chart-tooltip-bg: #2d2a24;
   --chart-tooltip-border: #2d2a24;
   --chart-empty: #c4bdb0;
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
 
   /* Element Plus 官方变量注入（护眼） */
   --el-color-primary: #5b7a5e;
@@ -381,6 +316,22 @@
   --el-color-info-light-8: #e5e2dc;
   --el-color-info-light-9: #eeece7;
   --el-color-info-dark-2: #6e6960;
+  --el-bg-color: var(--bg-card);
+  --el-bg-color-page: var(--bg-page);
+  --el-bg-color-overlay: var(--bg-card);
+  --el-fill-color-light: #f7f5f0;
+  --el-fill-color-lighter: #f9f5ed;
+  --el-fill-color-blank: var(--bg-card);
+  --workspace-fiber-dark: rgba(78, 61, 40, 0.065);
+  --workspace-fiber-light: rgba(255, 248, 232, 0.38);
+}
+:root,
+[data-theme="light"],
+[data-theme="dark"],
+[data-theme="eye-care"] {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-regular);
   --el-text-color-secondary: var(--text-secondary);
@@ -391,13 +342,7 @@
   --el-border-color-light: var(--border-color);
   --el-border-color-lighter: var(--border-light);
   --el-border-color-extra-light: var(--border-lighter);
-  --el-bg-color: var(--bg-card);
-  --el-bg-color-page: var(--bg-page);
-  --el-bg-color-overlay: var(--bg-card);
   --el-fill-color: var(--bg-menu-hover);
-  --el-fill-color-light: #f7f5f0;
-  --el-fill-color-lighter: #f9f5ed;
-  --el-fill-color-blank: var(--bg-card);
   --el-border-radius-base: var(--radius-md);
   --el-border-radius-small: var(--radius-sm);
   --el-mask-color: var(--bg-mask);
@@ -541,6 +486,25 @@ input, .stat-number, .kpi-number, .hero-number,
 }
 .el-table__body tr:hover > td.el-table__cell {
   background-color: var(--bg-table-hover);
+}
+
+/* 限定四个业务表格；页面类保留原 scoped 规则的选择器权重。 */
+:is(.bill-page .bill-table, .budget-page .budget-table, .category-page .category-table, .stats-page .report-table) {
+  width: 100%;
+}
+:is(.bill-page .bill-table, .budget-page .budget-table, .category-page .category-table, .stats-page .report-table) .el-table__header th {
+  background-color: var(--bg-table-header) !important;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-regular) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+:is(.bill-page .bill-table, .budget-page .budget-table, .category-page .category-table, .stats-page .report-table) .el-table__row {
+  height: 48px;
+  transition: background-color 0.2s ease;
+}
+:is(.bill-page .bill-table, .budget-page .budget-table, .category-page .category-table, .stats-page .report-table) .el-table__row:hover td {
+  background-color: var(--bg-table-hover) !important;
 }
 
 /* ============================================================

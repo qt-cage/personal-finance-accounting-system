@@ -11,6 +11,10 @@ public interface BillService {
 
     void addBill(Long userId, Bill bill);
 
+    Bill transfer(Long userId, Bill bill);
+
+    List<Map<String,Object>> getDayStats(Long userId, Integer type, String start, String end);
+
     void updateBill(Long userId, Bill bill);
 
     void deleteBill(Long id, Long userId);
@@ -18,7 +22,7 @@ public interface BillService {
     void deleteBatch(Long userId, List<Long> ids);
 
     IPage<Bill> pageList(Long userId, Integer type, Long categoryId, String startDate, String endDate,
-                         BigDecimal minAmount, BigDecimal maxAmount, int page, int size);
+                         BigDecimal minAmount, BigDecimal maxAmount, int page, int size, Long accountId);
 
     Map<String, Object> getStatistics(Long userId, String startDate, String endDate);
 

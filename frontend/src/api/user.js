@@ -12,10 +12,6 @@ export function getUserInfo() {
   return request.get('/user/info')
 }
 
-export function updateUserInfo(data) {
-  return request.put('/user/info', null, { params: data })
-}
-
 export function updateUserProfile(data) {
   return request.put('/user/profile', data)
 }
@@ -32,8 +28,4 @@ export function removeUserAvatar() {
 
 export function changePassword(data) {
   return request.put('/user/password', data)
-}
-
-export function deleteAccount() {
-  return request.delete('/user/account')
 }

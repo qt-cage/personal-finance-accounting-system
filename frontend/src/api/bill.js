@@ -1,5 +1,11 @@
 import request from '../utils/request'
 
+export const getDayStats = params => request.get('/bill/day-stats', { params })
+
+export function addTransfer(data) {
+  return request.post('/bill/transfer', data)
+}
+
 export function addBill(data) {
   return request.post('/bill', data)
 }
@@ -18,10 +24,6 @@ export function deleteBatchBill(ids) {
 
 export function getBillPage(params) {
   return request.get('/bill/page', { params })
-}
-
-export function getRecentBills() {
-  return request.get('/bill/recent')
 }
 
 export function getStatistics(params) {

@@ -3,7 +3,7 @@
     <PageHeader
       :title="$t('nav.budget')"
       :description="$t('budget.subtitle')"
-      :stamp="$t('budget.periodStamp', { period: month })"
+      :stamp="$t('budget.periodStamp', { period: loadedMonth || month })"
     >
       <template #actions>
         <el-button type="primary" :disabled="loading" @click="openDialog(null)">{{ $t('budget.setBudget') }}</el-button>
@@ -99,7 +99,7 @@
          ============================================================ -->
     <el-dialog
       v-model="dialogVisible"
-      :title="isEdit ? $t('budget.editBudget') : $t('budget.setBudget')"
+      :title="`${isEdit ? $t('budget.editBudget') : $t('budget.setBudget')} · ${form.month}`"
       width="500px"
       :close-on-click-modal="false"
     >
@@ -107,7 +107,7 @@
         <el-form-item :label="$t('budget.category')" prop="categoryId">
           <el-select v-model="form.categoryId" :placeholder="$t('budget.selectCategory')" clearable :loading="categoryLoading" style="width: 100%">
             <el-option :label="$t('budget.totalCategory')" :value="0" />
-            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+            <el-option v-for="c in categories" :key="c.id" :label="categoryLabel(c, categories)" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('budget.budgetAmount')" prop="amount">
@@ -130,21 +130,7 @@
 </template>
 
 <script setup>
-/**
- * ============================================================
- * 预算管理页 - 优化版
- *
- * 优化内容（毕设文档可用）：
- * 1. 筛选区 Flex 两端对齐，圆角12px，统一视觉规范
- * 2. 新增总览数据卡片（总预算/已支出/剩余）
- * 3. 表格斑马纹、列宽规范、进度条三级色彩
- * 4. 编辑功能复用设置弹窗，自动回填数据
- * 5. 删除二次确认弹窗，防止误删
- * 6. 全量多语言 i18n 适配
- * 7. 金额千分位格式化
- * ============================================================
- */
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getBudgetList, saveBudget, deleteBudget } from '../api/budget'
@@ -158,6 +144,7 @@ import { buildBudgetSummary } from '../utils/budgetSummary'
 import PageHeader from '../components/PageHeader.vue'
 import MetricStrip from '../components/MetricStrip.vue'
 import AppState from '../components/AppState.vue'
+import { categoryLabel } from '../utils/categoryHierarchy'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -167,6 +154,8 @@ function validMonth(value) {
 }
 
 const month = ref(validMonth(route.query.month) ? route.query.month : formatLocalMonth())
+const loadedMonth = ref('')
+let budgetRequest = 0
 const budgetList = ref([])
 const categories = ref([])
 const dialogVisible = ref(false)
@@ -178,7 +167,7 @@ const loading = ref(false)
 const loadError = ref('')
 const categoryLoading = ref(false)
 
-const form = reactive({ id: null, categoryId: 0, amount: null })
+const form = reactive({ categoryId: 0, amount: null, month: '' })
 const rules = {
   amount: [{ required: true, message: t('validation.budgetAmountRequired'), trigger: 'blur' }]
 }
@@ -226,20 +215,24 @@ function calcColor(row) {
 }
 
 async function loadBudgets() {
+  const current = ++budgetRequest
+  const requestedMonth = month.value
   loading.value = true
   loadError.value = ''
   try {
-    const { startDate, endDate } = getMonthDateRange(month.value)
+    const { startDate, endDate } = getMonthDateRange(requestedMonth)
     const [budgetRes, statsRes] = await Promise.all([
-      getBudgetList({ month: month.value }),
+      getBudgetList({ month: requestedMonth }),
       getStatistics({ startDate, endDate })
     ])
+    if (current !== budgetRequest) return
     budgetList.value = budgetRes.data || []
-    monthTotalSpent.value = parseFloat(statsRes.data?.expense || 0)
+    monthTotalSpent.value = statsRes.data?.expense || 0
+    loadedMonth.value = requestedMonth
   } catch (error) {
-    loadError.value = t('common.loadFailedDescription')
+    if (current === budgetRequest) loadError.value = t('common.loadFailedDescription')
   } finally {
-    loading.value = false
+    if (current === budgetRequest) loading.value = false
   }
 }
 
@@ -258,21 +251,22 @@ async function loadCategories() {
 function openDialog(row) {
   isEdit.value = !!row
   if (row) {
-    Object.assign(form, { id: row.id, categoryId: row.categoryId ?? 0, amount: row.amount })
+    Object.assign(form, { categoryId: row.categoryId ?? 0, amount: row.amount, month: row.month || loadedMonth.value })
   } else {
-    Object.assign(form, { id: null, categoryId: 0, amount: null })
+    Object.assign(form, { categoryId: 0, amount: null, month: month.value })
   }
   dialogVisible.value = true
 }
 
 async function handleSubmit() {
-  await formRef.value.validate()
+  if (submitting.value) return
   submitting.value = true
   try {
+    if (!await formRef.value.validate().catch(() => false)) return
     await saveBudget({
       categoryId: form.categoryId === 0 ? null : form.categoryId,
       amount: form.amount,
-      month: month.value
+      month: form.month
     })
     ElMessage.success(t('message.setSuccess'))
     dialogVisible.value = false
@@ -299,6 +293,7 @@ onMounted(() => {
   loadCategories()
   loadBudgets()
 })
+onBeforeUnmount(() => { budgetRequest++ })
 </script>
 
 <style scoped>
@@ -340,14 +335,6 @@ onMounted(() => {
   border-radius: 6px;
 }
 
-/* 右侧按钮 */
-.filter-actions {
-  flex-shrink: 0;
-}
-.filter-actions .el-button {
-  height: 36px;
-  border-radius: 6px;
-}
 
 /* 表格卡片 */
 .table-card {
@@ -365,23 +352,6 @@ onMounted(() => {
 }
 
 /* 表格覆盖 */
-.budget-table {
-  width: 100%;
-}
-.budget-table :deep(.el-table__header th) {
-  background-color: var(--bg-table-header) !important;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-regular) !important;
-  border-bottom: 1px solid var(--border-color) !important;
-}
-.budget-table :deep(.el-table__row) {
-  height: 48px;
-  transition: background-color 0.2s ease;
-}
-.budget-table :deep(.el-table__row:hover) td {
-  background-color: var(--bg-table-hover) !important;
-}
 
 @media (max-width: 720px) {
   .filter-bar,

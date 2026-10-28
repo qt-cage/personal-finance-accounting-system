@@ -117,6 +117,8 @@
               <label>{{ $t('profile.language') }}</label>
               <LanguageSelect variant="settings" />
             </div>
+            <div class="setting-block"><NotificationPreference /></div>
+            <div class="setting-block"><BillFileTools export-only /></div>
           </el-card>
 
           <el-card shadow="never" class="profile-card section-card security-card">
@@ -156,6 +158,8 @@ import PageHeader from '../components/PageHeader.vue'
 import LanguageSelect from '../components/LanguageSelect/index.vue'
 import ThemeSelect from '../components/ThemeSelect/index.vue'
 import { useCurrentUser } from '../composables/useCurrentUser'
+import NotificationPreference from '../components/NotificationPreference.vue'
+import BillFileTools from '../components/BillFileTools.vue'
 
 const { t } = useI18n()
 const {
@@ -270,10 +274,8 @@ async function handleRemoveAvatar() {
     avatarUploading.value = true
     await clearAvatar()
     ElMessage.success(t('profile.avatarRemoved'))
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      // 请求错误已由全局拦截器展示。
-    }
+  } catch {
+    // 取消不提示；请求错误已由全局拦截器展示。
   } finally {
     avatarUploading.value = false
   }

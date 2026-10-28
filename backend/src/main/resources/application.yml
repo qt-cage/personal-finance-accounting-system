@@ -2,6 +2,12 @@ server:
   port: 8088
 
 spring:
+  redis:
+    host: ${REDIS_HOST:127.0.0.1}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 200ms
+    connect-timeout: 200ms
   config:
     import: optional:file:${user.home}/.personal-finance/application.properties
   servlet:
@@ -26,10 +32,18 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 jwt:
-  secret: ${JWT_SECRET:${random.uuid}}
+  secret: ${JWT_SECRET:}}
   expiration: ${JWT_EXPIRATION:86400000}
 
 app:
+  bill-files:
+    max-user-storage-bytes: ${BILL_FILE_USER_QUOTA_BYTES:104857600}
+  cache:
+    enabled: ${FINANCE_CACHE_ENABLED:false}
+    namespace: ${FINANCE_CACHE_NAMESPACE:finance:aggregate}
+    ttl-seconds: 60
+  recurring:
+    enabled: false
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   avatar:

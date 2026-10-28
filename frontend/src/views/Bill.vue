@@ -2,6 +2,8 @@
   <div class="management-page bill-page">
     <PageHeader :title="$t('nav.bill')" :description="$t('bill.subtitle')">
       <template #actions>
+        <BillFileTools :filters="exportFilters" @imported="loadBills" />
+        <el-button @click="openTransfer()">{{ $t('finance.addTransfer') }}</el-button>
         <el-button type="primary" @click="openDialog(null)">{{ $t('bill.addBill') }}</el-button>
       </template>
     </PageHeader>
@@ -16,6 +18,10 @@
           <el-select v-model="query.type" :placeholder="$t('bill.selectType')" clearable>
             <el-option :label="$t('bill.expense')" :value="1" />
             <el-option :label="$t('bill.income')" :value="2" />
+            <el-option :label="$t('finance.transfer')" :value="3" />
+          </el-select>
+          <el-select v-model="query.accountId" :placeholder="$t('finance.selectAccount')" clearable :loading="accountLoading">
+            <el-option v-for="account in accounts" :key="account.id" :label="account.name" :value="account.id" />
           </el-select>
           <div class="date-range-wrap">
             <el-date-picker
@@ -102,25 +108,31 @@
         <el-table-column :label="$t('bill.type')" width="72" align="center">
           <template #default="{ row }">
             <el-tag
-              :type="row.type === 1 ? 'danger' : 'success'"
+              :type="billTone(row.type)"
               class="type-tag"
-            >{{ row.type === 1 ? $t('bill.expense') : $t('bill.income') }}</el-tag>
+            >{{ $t(billTypeKey(row.type)) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="categoryName" :label="$t('bill.category')" min-width="100" show-overflow-tooltip />
+        <el-table-column :label="$t('bill.category')" min-width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.type === 3 ? $t('finance.transfer') : row.categoryName }}</template>
+        </el-table-column>
+        <el-table-column :label="$t('finance.account')" min-width="155" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.accountName || $t('finance.pending') }}<span v-if="row.type === 3"> → {{ row.transferAccountName }}</span></template>
+        </el-table-column>
         <el-table-column :label="$t('bill.amount')" width="160" align="right">
           <template #default="{ row }">
-            <span :style="{ color: row.type === 1 ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }">
-              {{ row.type === 1 ? '-' : '+' }} ¥{{ formatAmount(row.amount) }}
+            <span :style="{ color: row.type === 3 ? 'var(--text-secondary)' : `var(--color-${billTone(row.type)})`, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }">
+              {{ billSign(row.type) }} ¥{{ formatAmount(row.amount) }}
             </span>
           </template>
         </el-table-column>
         <el-table-column prop="remark" :label="$t('bill.remark')" min-width="140" show-overflow-tooltip />
-        <el-table-column :label="$t('common.operation')" width="140" fixed="right" align="right">
+        <el-table-column :label="$t('common.operation')" width="145" fixed="right" align="right">
           <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="openDialog(row)">{{ $t('common.edit') }}</el-button>
-            <span class="action-divider">|</span>
-            <el-button type="danger" text size="small" @click="handleDelete(row.id)">{{ $t('common.delete') }}</el-button>
+            <el-button text size="small" @click="receiptBill=row.id; receiptsVisible=true">{{ $t('files.receipts') }}</el-button>
+            <el-button v-if="row.type !== 3" type="primary" text size="small" @click="openDialog(row)">{{ $t('common.edit') }}</el-button>
+            <span v-if="row.type !== 3" class="action-divider">|</span>
+            <el-button type="danger" text size="small" @click="handleDelete(row)">{{ row.type === 3 ? $t('finance.reverse') : $t('common.delete') }}</el-button>
           </template>
         </el-table-column>
         </el-table>
@@ -137,13 +149,14 @@
       </template>
     </el-card>
 
+    <BillAttachments v-model="receiptsVisible" :bill-id="receiptBill" />
     <!-- ============================================================
-         新增/编辑弹窗（业务逻辑零改动）
+         新增/编辑弹窗
          ============================================================ -->
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? $t('bill.editBill') : $t('bill.addBill')"
-      width="520px"
+      width="min(520px, calc(100vw - 32px))"
       :close-on-click-modal="false"
       @close="categoryLoader.invalidate"
     >
@@ -156,12 +169,22 @@
         </el-form-item>
         <el-form-item :label="$t('bill.category')" prop="categoryId">
           <el-select v-model="billForm.categoryId" :placeholder="$t('bill.selectCategory')" :loading="categoryLoading" :disabled="categoryLoading || categoryError" style="width: 100%">
-            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+            <el-option v-for="c in categories" :key="c.id" :label="categoryLabel(c, categories)" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-alert v-if="categoryError" :title="$t('common.loadFailed')" type="error" :closable="false" show-icon>
           <el-button text type="primary" @click="loadCategories">{{ $t('common.retry') }}</el-button>
         </el-alert>
+        <el-form-item :label="$t('finance.account')" prop="accountId">
+          <el-select v-model="billForm.accountId" :placeholder="$t('finance.pending')" :clearable="!initialAccountAssigned" :loading="accountLoading" :disabled="accountLoading || accountError" style="width:100%">
+            <el-option v-for="account in accounts" :key="account.id" :label="account.name" :value="account.id" />
+          </el-select>
+        </el-form-item>
+        <el-alert v-if="accountError" :title="$t('common.loadFailed')" type="error" :closable="false">
+          <el-button text type="primary" @click="loadAccounts">{{ $t('common.retry') }}</el-button>
+        </el-alert>
+        <p v-else-if="!accounts.length" class="account-form-hint">{{ $t('finance.createAccountHint') }} <router-link to="/account">{{ $t('finance.addAccount') }}</router-link></p>
+        <p v-else-if="isEdit && !initialAccountAssigned" class="account-form-hint">{{ $t('finance.pendingHint') }}</p>
         <el-form-item :label="$t('bill.amount')" prop="amount">
           <el-input-number v-model="billForm.amount" :min="0.01" :precision="2" :step="10" style="width: 100%" controls-position="right" />
         </el-form-item>
@@ -174,46 +197,60 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitting" :disabled="categoryLoading || categoryError" @click="handleSubmit">{{ $t('common.confirm') }}</el-button>
+        <el-button type="primary" :loading="submitting" :disabled="categoryLoading || categoryError || accountLoading || accountError" @click="handleSubmit">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+    <el-dialog v-model="transferVisible" :title="$t('finance.addTransfer')" width="min(520px, calc(100vw - 32px))" :close-on-click-modal="false">
+      <p class="account-form-hint">{{ $t('finance.transferHint') }}</p>
+      <el-form ref="transferFormRef" :model="transferForm" :rules="transferRules" label-position="top">
+        <el-form-item :label="$t('finance.fromAccount')" prop="accountId">
+          <el-select v-model="transferForm.accountId" :placeholder="$t('finance.selectFrom')" style="width:100%">
+            <el-option v-for="account in accounts" :key="account.id" :label="account.name" :value="account.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('finance.toAccount')" prop="transferAccountId">
+          <el-select v-model="transferForm.transferAccountId" :placeholder="$t('finance.selectTo')" style="width:100%">
+            <el-option v-for="account in accounts" :key="account.id" :label="account.name" :value="account.id" :disabled="account.id === transferForm.accountId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('bill.amount')" prop="amount"><el-input-number v-model="transferForm.amount" :min="0.01" :max="9999999999.99" :precision="2" controls-position="right" style="width:100%" /></el-form-item>
+        <el-form-item :label="$t('bill.date')" prop="billDate"><el-date-picker v-model="transferForm.billDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
+        <el-form-item :label="$t('bill.remark')"><el-input v-model="transferForm.remark" maxlength="200" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="transferVisible=false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="transferring" @click="submitTransfer">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-/**
- * ============================================================
- * 账单管理页 - 精排版
- *
- * 优化内容：
- * 1. 筛选区控件基线对齐，分隔符浅灰弱化
- * 2. 快捷日期选中态联动闭环
- * 3. 金额统一格式：符号+空格+¥+千分位+两位小数
- * 4. 列对齐规范：日期左、类型中、金额右、操作右
- * 5. 批量操作栏置于表格左上角，选中后显示数量
- * 6. 空状态表格自动显示多语言提示
- * 7. 表头F5F7FA、行高48px、hover浅蓝
- * 业务逻辑零改动
- * ============================================================
- */
-import { ref, reactive, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { getBillPage, addBill, updateBill, deleteBill, deleteBatchBill } from '../api/bill'
+import { getBillPage, addBill, updateBill, deleteBill, deleteBatchBill, addTransfer } from '../api/bill'
+import { getAccountList } from '../api/account'
 import { getCategoryList } from '../api/category'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatAmount } from '../utils/format'
-import { formatLocalDate, getCurrentWeekRange, getMonthDateRange } from '../utils/businessDate'
+import { formatLocalDate, getQuickDateRange, getMonthDateRange } from '../utils/businessDate'
 import { createBillCategoryLoader } from '../utils/billCategoryLoader'
+import { categoryLabel } from '../utils/categoryHierarchy'
+import { billTypeKey, billTone, billSign } from '../utils/billPresentation'
 import PageHeader from '../components/PageHeader.vue'
 import AppState from '../components/AppState.vue'
+import BillFileTools from '../components/BillFileTools.vue'
+import BillAttachments from '../components/BillAttachments.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-const query = reactive({ type: null, startDate: null, endDate: null, minAmount: null, maxAmount: null, page: 1, size: 10 })
+const query = reactive({ type: null, accountId: null, startDate: null, endDate: null, minAmount: null, maxAmount: null, page: 1, size: 10 })
 const dateRange = ref(null)
+const receiptsVisible = ref(false), receiptBill = ref(null)
+const exportFilters = computed(() => ({ ...query, startDate: dateRange.value?.[0], endDate: dateRange.value?.[1] }))
 const tableData = ref([])
 const total = ref(0)
 const quickType = ref('')
@@ -226,9 +263,18 @@ const categories = ref([])
 const categoryLoading = ref(false)
 const categoryError = ref(false)
 const loading = ref(false)
+let billRequest = 0
 const loadError = ref('')
+const accounts = ref([])
+const accountLoading = ref(false)
+const accountError = ref(false)
+const initialAccountAssigned = ref(false)
+const transferVisible = ref(false)
+const transferring = ref(false)
+const transferFormRef = ref()
+const transferForm = reactive({ accountId: null, transferAccountId: null, amount: null, billDate: '', remark: '', requestId: '' })
 
-const billForm = reactive({ id: null, type: 1, categoryId: null, amount: null, billDate: '', remark: '' })
+const billForm = reactive({ id: null, type: 1, categoryId: null, accountId: null, amount: null, billDate: '', remark: '' })
 const categoryLoader = createBillCategoryLoader({
   form: billForm,
   fetchCategories: getCategoryList,
@@ -237,46 +283,54 @@ const categoryLoader = createBillCategoryLoader({
   onError: error => { categoryError.value = !!error }
 })
 const billRules = {
+  accountId: [{ validator: (rule, value, callback) => !isEdit.value && !value ? callback(new Error(t('finance.accountRequired'))) : callback(), trigger: 'change' }],
   type: [{ required: true, message: t('validation.typeRequired'), trigger: 'change' }],
   categoryId: [{ required: true, message: t('validation.categoryRequired'), trigger: 'change' }],
   amount: [{ required: true, message: t('validation.amountRequired'), trigger: 'blur' }],
   billDate: [{ required: true, message: t('validation.dateRequired'), trigger: 'change' }]
 }
 const layout = 'total, prev, pager, next'
+const transferRules = {
+  accountId: [{ required: true, message: t('finance.selectFrom'), trigger: 'change' }],
+  transferAccountId: [{ validator: (rule, value, callback) => !value ? callback(new Error(t('finance.selectTo'))) : value === transferForm.accountId ? callback(new Error(t('finance.differentAccounts'))) : callback(), trigger: 'change' }],
+  amount: billRules.amount,
+  billDate: billRules.billDate
+}
+
+async function loadAccounts() {
+  accountLoading.value = true
+  accountError.value = false
+  try { accounts.value = (await getAccountList()).data || []; return true }
+  catch { accountError.value = true; return false }
+  finally { accountLoading.value = false }
+}
+async function openTransfer() {
+  if (!await loadAccounts()) return
+  if (accounts.value.length < 2) return ElMessage.info(t('finance.needTwoAccounts'))
+  Object.assign(transferForm, { accountId: accounts.value.some(a => a.id === query.accountId) ? query.accountId : null,
+    transferAccountId: null, amount: null, billDate: formatLocalDate(), remark: '', requestId: crypto.randomUUID() })
+  transferVisible.value = true
+  nextTick(() => transferFormRef.value?.clearValidate())
+}
+async function submitTransfer() {
+  if (transferring.value || !await transferFormRef.value.validate().catch(() => false)) return
+  transferring.value = true
+  try {
+    await addTransfer(transferForm)
+    ElMessage.success(t('finance.transferSuccess'))
+    transferVisible.value = false
+    await loadBills()
+  } catch { /* 请求层显示错误，保留请求编号供重试，避免重复转账。 */ }
+  finally { transferring.value = false }
+}
 
 function onSelectionChange(rows) {
   selectedIds.value = rows.map(r => r.id)
 }
 
-/** 快捷日期：选中后自动填充日期并高亮
- *  结束日期使用 new Date(year, month, 0) 自动计算当月最后一天
- *  大小月、闰年2月全部自动适配，永不生成非法日期
- */
 function setQuickDate(type) {
   quickType.value = type
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth() + 1
-  let start, end
-  if (type === 'week') {
-    const range = getCurrentWeekRange(now)
-    start = range.start
-    end = range.end
-  } else if (type === 'month') {
-    start = `${y}-${String(m).padStart(2, '0')}-01`
-    // 当月最后一天：new Date(y, m, 0) → m为月份索引+1
-    const lastDay = new Date(y, m, 0).getDate()
-    end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-  } else {
-    // 本季度
-    const q = Math.ceil(m / 3)
-    const startM = (q - 1) * 3 + 1
-    const endM = q * 3
-    start = `${y}-${String(startM).padStart(2, '0')}-01`
-    // 季度最后一天：new Date(y, endM, 0) → endM为月份索引+1
-    const lastDay = new Date(y, endM, 0).getDate()
-    end = `${y}-${String(endM).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-  }
+  const { start, end } = getQuickDateRange(type)
   dateRange.value = [start, end]
   query.startDate = start
   query.endDate = end
@@ -289,6 +343,7 @@ function onDateManualChange() {
 
 function resetQuery() {
   query.type = null
+  query.accountId = null
   dateRange.value = null
   query.startDate = null
   query.endDate = null
@@ -300,6 +355,7 @@ function resetQuery() {
 }
 
 async function loadBills() {
+  const current = ++billRequest
   if (dateRange.value) {
     query.startDate = dateRange.value[0]
     query.endDate = dateRange.value[1]
@@ -312,13 +368,14 @@ async function loadBills() {
   loading.value = true
   loadError.value = ''
   try {
-    const res = await getBillPage(query)
+    const res = await getBillPage({ ...query })
+    if (current !== billRequest) return
     tableData.value = res.data.records || []
     total.value = res.data.total || 0
   } catch (error) {
-    loadError.value = t('common.loadFailedDescription')
+    if (current === billRequest) loadError.value = t('common.loadFailedDescription')
   } finally {
-    loading.value = false
+    if (current === billRequest) loading.value = false
   }
 }
 
@@ -332,19 +389,21 @@ function onBillTypeChange() {
 
 function openDialog(row, type = 1) {
   isEdit.value = !!row
+  initialAccountAssigned.value = !!row?.accountId
   if (row) {
-    Object.assign(billForm, { id: row.id, type: row.type, categoryId: row.categoryId, amount: row.amount, billDate: row.billDate, remark: row.remark })
+    Object.assign(billForm, { id: row.id, type: row.type, categoryId: row.categoryId, accountId: row.accountId, amount: row.amount, billDate: row.billDate, remark: row.remark })
   } else {
-    Object.assign(billForm, { id: null, type, categoryId: null, amount: null, billDate: formatLocalDate(), remark: '' })
+    Object.assign(billForm, { id: null, type, categoryId: null, accountId: query.accountId, amount: null, billDate: formatLocalDate(), remark: '' })
   }
   loadCategories()
+  loadAccounts()
   dialogVisible.value = true
   nextTick(() => billFormRef.value?.clearValidate())
 }
 
 async function handleSubmit() {
-  if (submitting.value || categoryLoading.value || categoryError.value) return
-  await billFormRef.value.validate()
+  if (submitting.value || categoryLoading.value || categoryError.value || accountLoading.value || accountError.value) return
+  if (!await billFormRef.value.validate().catch(() => false)) return
   submitting.value = true
   try {
     if (isEdit.value) await updateBill(billForm)
@@ -352,18 +411,19 @@ async function handleSubmit() {
     ElMessage.success(isEdit.value ? t('message.updateSuccess') : t('message.addSuccess'))
     dialogVisible.value = false
     loadBills()
-  } finally { submitting.value = false }
+  } catch { /* 请求层显示错误，保留表单。 */ }
+  finally { submitting.value = false }
 }
 
-async function handleDelete(id) {
-  await ElMessageBox.confirm(t('bill.deleteConfirm'), t('common.tip'), { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') })
-  await deleteBill(id)
+async function handleDelete(row) {
+  await ElMessageBox.confirm(t(row.type === 3 ? 'finance.reverseConfirm' : 'bill.deleteConfirm'), t('common.tip'), { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') })
+  await deleteBill(row.id)
   ElMessage.success(t('bill.deleteSuccess'))
   loadBills()
 }
 
 async function handleBatchDelete() {
-  await ElMessageBox.confirm(t('bill.batchDeleteConfirm', { count: selectedIds.value.length }), t('common.tip'), { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') })
+  await ElMessageBox.confirm(t('bill.batchDeleteConfirm', { count: selectedIds.value.length }) + ' ' + t('finance.batchHint'), t('common.tip'), { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') })
   await deleteBatchBill(selectedIds.value)
   ElMessage.success(t('bill.deleteSuccess'))
   selectedIds.value = []
@@ -380,23 +440,32 @@ function applyRequestedMonth() {
   query.page = 1
 }
 watch(() => route.query.month, () => { applyRequestedMonth(); loadBills() })
-function openRequestedBill() {
-  if (route.query.action !== 'add') return
-  openDialog(null, route.query.type === '2' ? 2 : 1)
+async function openRequestedBill() {
+  if (route.query.action === 'transfer') await openTransfer()
+  else if (route.query.action === 'add') openDialog(null, route.query.type === '2' ? 2 : 1)
+  else return
   const { action, type, ...remainingQuery } = route.query
   router.replace({ path: route.path, query: remainingQuery })
 }
 
 watch(() => [route.query.action, route.query.type], openRequestedBill)
-onMounted(() => {
+function applyRequestedAccount() {
+  const id = Number(route.query.accountId)
+  query.accountId = Number.isSafeInteger(id) && id > 0 ? id : null
+}
+watch(() => route.query.accountId, () => { applyRequestedAccount(); query.page = 1; loadBills() })
+onMounted(async () => {
   applyRequestedMonth()
+  applyRequestedAccount()
   loadBills()
+  await loadAccounts()
   openRequestedBill()
 })
-onBeforeUnmount(() => categoryLoader.invalidate())
+onBeforeUnmount(() => { billRequest++; categoryLoader.invalidate() })
 </script>
 
 <style scoped>
+.account-form-hint { color: var(--text-secondary); font-size: 13px; line-height: 1.7; margin: 0 0 16px; }
 /* ============================================================
    账单管理页样式
    ============================================================ */
@@ -504,18 +573,6 @@ onBeforeUnmount(() => categoryLoader.invalidate())
 .batch-count { font-size: 12px; color: var(--text-secondary); }
 
 /* 表格统一样式 */
-.bill-table { width: 100%; }
-.bill-table :deep(.el-table__header th) {
-  background-color: var(--bg-table-header) !important;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-regular) !important;
-  border-bottom: 1px solid var(--border-color) !important;
-}
-.bill-table :deep(.el-table__row) { height: 48px; transition: background-color 0.2s ease; }
-.bill-table :deep(.el-table__row:hover) td {
-  background-color: var(--bg-table-hover) !important;
-}
 
 /* 类型标签 */
 .type-tag { border-radius: 4px; padding: 2px 8px; font-size: 12px; border: none; }
@@ -524,6 +581,8 @@ onBeforeUnmount(() => categoryLoader.invalidate())
 
 /* 操作列分隔符 */
 .action-divider { color: var(--border-strong); font-size: 12px; margin: 0 2px; }
+.bill-table :deep(.el-button.is-text) { padding: 4px 2px; margin-left: 0; }
+.bill-table :deep(.el-table-fixed-column--right) { background-color: var(--bg-card) !important; }
 
 /* 分页 */
 .pagination { margin-top: 20px; display: flex; justify-content: center; }

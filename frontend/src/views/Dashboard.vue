@@ -25,9 +25,9 @@
         <template #header><div class="card-heading"><strong>{{ $t('dashboard.recentRecords') }}</strong><router-link :to="{ path: '/bill', query: { month: loadedMonth } }">{{ $t('dashboard.viewAll') }} →</router-link></div></template>
         <el-table :data="recentBills" :empty-text="$t('common.noData')">
           <el-table-column prop="billDate" :label="$t('bill.date')" width="118" />
-          <el-table-column :label="$t('bill.type')" width="72"><template #default="{ row }">{{ row.type === 1 ? $t('bill.expense') : $t('bill.income') }}</template></el-table-column>
-          <el-table-column prop="categoryName" :label="$t('bill.category')" min-width="140" show-overflow-tooltip />
-          <el-table-column :label="$t('bill.amount')" align="right" min-width="150"><template #default="{ row }"><span class="amount" :class="row.type === 1 ? 'expense' : 'income'">{{ row.type === 1 ? '−' : '+' }} ¥{{ formatAmount(row.amount) }}</span></template></el-table-column>
+          <el-table-column :label="$t('bill.type')" width="72"><template #default="{ row }">{{ $t(billTypeKey(row.type)) }}</template></el-table-column>
+          <el-table-column :label="$t('bill.category')" min-width="140" show-overflow-tooltip><template #default="{ row }">{{ row.type === 3 ? `${row.accountName} → ${row.transferAccountName}` : row.categoryName }}</template></el-table-column>
+          <el-table-column :label="$t('bill.amount')" align="right" min-width="150"><template #default="{ row }"><span class="amount" :class="row.type === 1 ? 'expense' : row.type === 2 ? 'income' : ''">{{ billSign(row.type) }} ¥{{ formatAmount(row.amount) }}</span></template></el-table-column>
           <el-table-column prop="remark" :label="$t('bill.remark')" min-width="170" show-overflow-tooltip />
         </el-table>
       </el-card>
@@ -41,6 +41,7 @@ import { useRouter } from 'vue-router'
 import { getStatistics, getCategoryStats, getBillPage } from '../api/bill'
 import { getBudgetList } from '../api/budget'
 import { formatAmount } from '../utils/format'
+import { billTypeKey, billSign } from '../utils/billPresentation'
 import { formatLocalMonth, getMonthDateRange } from '../utils/businessDate'
 import PageHeader from '../components/PageHeader.vue'
 import MetricStrip from '../components/MetricStrip.vue'
@@ -56,8 +57,8 @@ const totalBudget = ref(null)
 const loading = ref(false), loaded = ref(false), loadError = ref('')
 const metricItems = computed(() => {
   const period = loadedMonth.value
-  const spent = Number(stats.value.expense || 0)
-  const total = Number(totalBudget.value?.amount || 0)
+  const spent = stats.value.expense || 0
+  const total = totalBudget.value?.amount || 0
   const percentage = total > 0 ? Math.round(spent / total * 100) : null
   return [
     { key: 'balance', label: `${period} · ${t('dashboard.periodBalance')}`, value: `¥${formatAmount(stats.value.balance)}`, tone: Number(stats.value.balance) < 0 ? 'danger' : 'neutral' },

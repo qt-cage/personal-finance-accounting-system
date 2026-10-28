@@ -17,6 +17,13 @@ public class Bill {
 
     private Long categoryId;
 
+    private Long accountId;
+
+    private Long transferAccountId;
+
+    /** 转账幂等键不因逻辑删除而释放，防止重试恢复已撤销转账。 */
+    private String requestId;
+
     private BigDecimal amount;
 
     private Integer type;
@@ -39,4 +46,10 @@ public class Bill {
 
     @TableField(exist = false)
     private String categoryIcon;
+
+    @TableField(exist = false)
+    private String accountName;
+
+    @TableField(exist = false)
+    private String transferAccountName;
 }

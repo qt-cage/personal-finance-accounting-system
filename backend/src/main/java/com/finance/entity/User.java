@@ -2,6 +2,7 @@ package com.finance.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Data
@@ -13,7 +14,12 @@ public class User {
 
     private String username;
 
+    @JsonIgnore
     private String password;
+
+    private String role;
+
+    private String status;
 
     /** 改密时递增，用于使已签发的登录令牌失效；部分更新时必须保留 null。 */
     private Integer tokenVersion;

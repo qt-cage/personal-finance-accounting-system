@@ -11,5 +11,9 @@ public interface CategoryService {
 
     void updateCategory(Long userId, Category category);
 
+    void updateCategory(Long userId, Category category, boolean parentSpecified);
+
     void deleteCategory(Long id, Long userId);
+
+    void reorder(Long userId, Long id, Long targetId);
 }

@@ -7,6 +7,7 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.validation.constraints.Positive;
 
 /**
  * 分类新增请求。用户归属由服务端写入。
@@ -27,4 +28,7 @@ public class CategoryCreateDTO {
     private String icon;
 
     private Integer sortOrder;
+
+    @Positive(message = "父分类ID无效")
+    private Long parentId;
 }

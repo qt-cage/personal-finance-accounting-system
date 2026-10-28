@@ -60,10 +60,10 @@ public class AvatarStorageService {
         if (userId == null || userId <= 0) {
             throw new BusinessException(401, "请先登录");
         }
-        ValidatedImage image = validate(file);
+        String extension = validate(file);
         try {
             Files.createDirectories(storageRoot);
-            String filename = "u" + userId + "-" + UUID.randomUUID().toString().replace("-", "") + "." + image.extension;
+            String filename = "u" + userId + "-" + UUID.randomUUID().toString().replace("-", "") + "." + extension;
             Path target = resolveManagedFile(filename);
             Path temporary = Files.createTempFile(storageRoot, ".avatar-", ".tmp");
             try {
@@ -134,7 +134,7 @@ public class AvatarStorageService {
         return location.endsWith("/") ? location : location + "/";
     }
 
-    private ValidatedImage validate(MultipartFile file) {
+    public String validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(400, message("user.avatar.empty", "请选择头像文件"));
         }
@@ -176,7 +176,7 @@ public class AvatarStorageService {
                 if (reader.read(0) == null) {
                     throw invalidImage();
                 }
-                return new ValidatedImage(actualExtension);
+                return actualExtension;
             } finally {
                 reader.dispose();
             }
@@ -240,11 +240,4 @@ public class AvatarStorageService {
         return value == null || key.equals(value) ? fallback : value;
     }
 
-    private static class ValidatedImage {
-        private final String extension;
-
-        private ValidatedImage(String extension) {
-            this.extension = extension;
-        }
-    }
 }

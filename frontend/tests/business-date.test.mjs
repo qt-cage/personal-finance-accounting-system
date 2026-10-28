@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
-import { formatLocalDate, getCurrentWeekRange, getMonthDateRange } from '../src/utils/businessDate.js'
+import { formatLocalDate, getCurrentWeekRange, getMonthDateRange, getQuickDateRange } from '../src/utils/businessDate.js'
 
 test('local business dates stay correct before 08:00 at month and year boundaries in Shanghai', () => {
   const moduleUrl = new URL('../src/utils/businessDate.js', import.meta.url).href
@@ -40,4 +40,19 @@ test('monthly ranges include leap days and reject invalid month input', () => {
     assert.throws(() => getMonthDateRange(month), TypeError)
   }
   assert.throws(() => formatLocalDate(new Date('invalid')), TypeError)
+})
+
+test('shared quick ranges keep local week, leap-month and quarter boundaries', () => {
+  const cases = [
+    ['week', new Date(2027, 0, 1), { start: '2026-12-28', end: '2027-01-01' }],
+    ['month', new Date(2028, 1, 29), { start: '2028-02-01', end: '2028-02-29' }],
+    ['quarter', new Date(2028, 1, 29), { start: '2028-01-01', end: '2028-03-31' }],
+    ['quarter', new Date(2026, 11, 31), { start: '2026-10-01', end: '2026-12-31' }]
+  ]
+  for (const [type, date, expected] of cases) {
+    const original = date.getTime()
+    assert.deepEqual(getQuickDateRange(type, date), expected)
+    assert.equal(date.getTime(), original)
+  }
+  assert.throws(() => getQuickDateRange('month', new Date('invalid')), TypeError)
 })
